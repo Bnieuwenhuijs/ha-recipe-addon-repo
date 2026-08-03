@@ -1,5 +1,5 @@
 name: "Recipe Parser"
-version: "1.0.0"
+version: "1.0.1"
 slug: "recipe_parser"
 description: "Haalt ingrediënten op van receptpagina's (o.a. voedingscentrum.nl) via een REST endpoint, voor gebruik in Home Assistant scripts richting Bring."
 url: "https://www.voedingscentrum.nl"

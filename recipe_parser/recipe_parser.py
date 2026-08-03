@@ -23,7 +23,19 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (HomeAssistant recipe-parser)"}
 def extract_ingredients(html: str):
     soup = BeautifulSoup(html, "html.parser")
 
-    # Zoek de kop "Ingrediënten" (h2/h3).
+    # Voedingscentrum.nl markeert elk ingrediënt met de schema.org-attribuut
+    # itemprop="recipeIngredient", ook als de lijst over meerdere <ul>-kolommen
+    # verdeeld is (div.columns.group). Geverifieerd tegen meerdere live
+    # recepten - dit is robuuster dan op de koptekst "Ingrediënten" te zoeken.
+    items = soup.find_all(attrs={"itemprop": "recipeIngredient"})
+    ingredients = [text for i in items if (text := i.get_text(strip=True))]
+    if ingredients:
+        return ingredients
+
+    # Fallback voor pagina's zonder itemprop-markering: zoek de kop
+    # "Ingrediënten" (h2/h3) en loop door alle volgende elementen in
+    # document-volgorde (dus ook geneste <ul>'s in kolommen) tot de
+    # volgende kop (bijv. "Bereiding").
     heading = soup.find(
         lambda tag: tag.name in ("h2", "h3")
         and "ingredi" in tag.get_text(strip=True).lower()
@@ -31,10 +43,6 @@ def extract_ingredients(html: str):
     if not heading:
         return []
 
-    # Loop door ALLE volgende elementen in document-volgorde (dus ook
-    # geneste elementen, zoals meerdere <ul>'s naast elkaar in kolommen
-    # binnen een omliggende <div>), tot de volgende kop (bijv. "Bereiding").
-    ingredients = []
     for elem in heading.find_all_next():
         if elem.name in ("h2", "h3"):
             break
