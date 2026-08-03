@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.0
+
+- Nieuw: ingress-webformulier (verschijnt als paneel in de HA-sidebar) om
+  een recept-URL en todo-entity in te vullen. De gevonden ingrediënten
+  worden direct via de Home Assistant API (`todo.add_item`) toegevoegd,
+  zonder tussenkomst van een `rest_command` of script.
+- Vereist `homeassistant_api: true` (toegevoegd aan `config.yaml`) voor
+  toegang tot de HA API via `SUPERVISOR_TOKEN`.
+- Draait het formulier lokaal buiten Home Assistant (geen
+  `SUPERVISOR_TOKEN` aanwezig), dan worden de ingrediënten getoond met
+  een waarschuwing in plaats van te worden toegevoegd - zo blijft lokaal
+  testen mogelijk.
+- Toegevoegd: `test_app.py` met gemockte HTTP-calls voor de nieuwe route.
+
 ## 1.0.1
 
 - Ingrediënten worden nu primair via het `itemprop="recipeIngredient"`

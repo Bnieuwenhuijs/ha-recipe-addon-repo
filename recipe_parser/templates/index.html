@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="nl">
+<head>
+  <meta charset="utf-8">
+  <title>Recipe Parser</title>
+  <style>
+    body { font-family: sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+    label { display: block; margin-top: 1rem; font-weight: bold; }
+    input[type=text], input[type=url] { width: 100%; padding: 0.5rem; box-sizing: border-box; }
+    button { margin-top: 1rem; padding: 0.5rem 1rem; }
+    .success { color: #1a7f37; }
+    .error { color: #c0392b; }
+    .warning { color: #b8860b; }
+    ul { padding-left: 1.2rem; }
+  </style>
+</head>
+<body>
+  <h1>Recept naar boodschappenlijst</h1>
+  <form method="post">
+    <label for="url">Recept-URL</label>
+    <input type="url" id="url" name="url" required value="{{ url or '' }}"
+           placeholder="https://www.voedingscentrum.nl/recepten/...">
+
+    <label for="entity_id">Boodschappenlijst (todo-entity)</label>
+    <input type="text" id="entity_id" name="entity_id" value="{{ entity_id }}">
+
+    <button type="submit">Toevoegen</button>
+  </form>
+
+  {% if message %}
+    <p class="{{ message_class }}">{{ message }}</p>
+  {% endif %}
+
+  {% if ingredients %}
+    <h2>Gevonden ingrediënten ({{ ingredients|length }})</h2>
+    <ul>
+      {% for ing in ingredients %}
+        <li>{{ ing }}</li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</body>
+</html>

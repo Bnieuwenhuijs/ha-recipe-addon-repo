@@ -14,7 +14,17 @@ Home Assistant add-on repository met daarin één add-on: **Recipe Parser**.
 
 Een kleine Flask-microservice die een receptpagina-URL (voornamelijk
 [voedingscentrum.nl](https://www.voedingscentrum.nl)) ophaalt, de
-ingrediëntenlijst uit de HTML haalt en als JSON teruggeeft.
+ingrediëntenlijst uit de HTML haalt, en via een webformulier of REST
+endpoint kan doorzetten naar een Home Assistant todo-lijst (bijv. Bring).
+
+### Webformulier (ingress)
+
+De add-on verschijnt na installatie als paneel in de HA-sidebar (via
+[ingress](https://developers.home-assistant.io/docs/add-ons/presentation/#ingress)).
+Daar vul je een recept-URL en een todo-entity in (standaard `todo.thuis`)
+en de gevonden ingrediënten worden direct via de Home Assistant API
+(`todo.add_item`) aan die lijst toegevoegd - geen aparte `rest_command`
+of script nodig.
 
 ### Endpoint
 
@@ -41,12 +51,11 @@ GET /parse?url=<recept-url>
 
 Daarnaast is er een `GET /health` endpoint dat `{"status": "ok"}` teruggeeft.
 
-### Gebruik vanuit Home Assistant
+### Gebruik vanuit een Home Assistant automation/script
 
-De bedoeling is dat Home Assistant dit endpoint aanroept via een
-`rest_command`, en de ingrediënten vervolgens één voor één via
-`todo.add_item` toevoegt aan een Bring!-boodschappenlijst (via de
-Home Assistant Bring-integratie).
+Naast het formulier blijft `/parse` bruikbaar voor automatisering, bijv.
+via een `rest_command` gevolgd door een script dat zelf `todo.add_item`
+per ingrediënt aanroept:
 
 ```yaml
 # configuration.yaml
@@ -56,22 +65,31 @@ rest_command:
     method: GET
 ```
 
-Een script kan de response van `rest_command.parse_recipe` uitlezen en
-per ingrediënt `todo.add_item` aanroepen op bijvoorbeeld `todo.thuis`.
-
 ### Lokaal testen
 
-De extractielogica (`extract_ingredients()`) kan los van Home Assistant
-getest worden met de meegeleverde HTML-fixtures (afkomstig van live
-recepten):
+**Unit tests** — de extractielogica en het formulier kunnen los van Home
+Assistant getest worden met de meegeleverde HTML-fixtures (afkomstig van
+live recepten) en gemockte HTTP-calls:
 
 ```bash
 cd recipe_parser
-python -m unittest test_parser.py -v
+pip install -r requirements.txt
+python -m unittest test_parser.py test_app.py -v
 ```
 
-Zo hoeft de add-on niet steeds herbouwd te worden in Home Assistant om
-een wijziging in de parser te verifiëren.
+**Het formulier zelf proberen** — start de app lokaal en open
+`http://localhost:5001/` in je browser:
+
+```bash
+cd recipe_parser
+python recipe_parser.py
+```
+
+Zonder `SUPERVISOR_TOKEN` (die alleen bestaat als de add-on binnen Home
+Assistant draait) worden de gevonden ingrediënten getoond met een
+waarschuwing dat ze niet zijn toegevoegd - zo kan de parser en het
+formulier volledig lokaal getest worden zonder Home Assistant nodig te
+hebben, en zonder de add-on steeds te hoeven herbouwen.
 
 ### Bekende beperking
 

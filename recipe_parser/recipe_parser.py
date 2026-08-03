@@ -11,13 +11,35 @@ Response:
     of bij een fout: { "error": "..." }
 """
 
-from flask import Flask, request, jsonify
+import os
+
+from flask import Flask, request, jsonify, render_template
 import requests
 from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (HomeAssistant recipe-parser)"}
+
+# Beschikbaar zodra de add-on draait met homeassistant_api: true in config.yaml.
+# Ontbreekt bij lokaal draaien buiten Home Assistant (bewust geen fallback -
+# dat maakt lokaal testen van het formulier mogelijk zonder HA-verbinding).
+SUPERVISOR_TOKEN = os.environ.get("SUPERVISOR_TOKEN")
+HA_API_BASE = "http://supervisor/core/api"
+DEFAULT_TODO_ENTITY = "todo.thuis"
+
+
+def add_ingredient_to_todo(entity_id: str, item: str):
+    resp = requests.post(
+        f"{HA_API_BASE}/services/todo/add_item",
+        headers={
+            "Authorization": f"Bearer {SUPERVISOR_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        json={"entity_id": entity_id, "item": item},
+        timeout=10,
+    )
+    resp.raise_for_status()
 
 
 def extract_ingredients(html: str):
@@ -51,6 +73,69 @@ def extract_ingredients(html: str):
             if text:
                 ingredients.append(text)
     return ingredients
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    ingredients = None
+    message = None
+    message_class = None
+    url = ""
+    entity_id = DEFAULT_TODO_ENTITY
+
+    if request.method == "POST":
+        url = request.form.get("url", "").strip()
+        entity_id = request.form.get("entity_id", "").strip() or DEFAULT_TODO_ENTITY
+
+        if not url:
+            message, message_class = "Vul een recept-URL in.", "error"
+        else:
+            try:
+                resp = requests.get(url, headers=HEADERS, timeout=10)
+                resp.raise_for_status()
+            except requests.RequestException as e:
+                message, message_class = f"Kon pagina niet ophalen: {e}", "error"
+            else:
+                ingredients = extract_ingredients(resp.text)
+                if not ingredients:
+                    message, message_class = (
+                        "Geen ingrediënten gevonden - paginastructuur kan gewijzigd zijn.",
+                        "error",
+                    )
+                elif not SUPERVISOR_TOKEN:
+                    message, message_class = (
+                        "Ingrediënten gevonden, maar niet toegevoegd: geen SUPERVISOR_TOKEN "
+                        "beschikbaar (draai je dit lokaal buiten Home Assistant?).",
+                        "warning",
+                    )
+                else:
+                    added, failed = 0, []
+                    for ingredient in ingredients:
+                        try:
+                            add_ingredient_to_todo(entity_id, ingredient)
+                            added += 1
+                        except requests.RequestException:
+                            failed.append(ingredient)
+                    if failed:
+                        message, message_class = (
+                            f"{added}/{len(ingredients)} ingrediënten toegevoegd aan "
+                            f"{entity_id}. Mislukt: {', '.join(failed)}",
+                            "warning",
+                        )
+                    else:
+                        message, message_class = (
+                            f"Alle {added} ingrediënten toegevoegd aan {entity_id}.",
+                            "success",
+                        )
+
+    return render_template(
+        "index.html",
+        ingredients=ingredients,
+        message=message,
+        message_class=message_class,
+        url=url,
+        entity_id=entity_id,
+    )
 
 
 @app.route("/parse", methods=["GET"])

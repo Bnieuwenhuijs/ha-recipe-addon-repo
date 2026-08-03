@@ -1,7 +1,7 @@
 name: "Recipe Parser"
-version: "1.0.1"
+version: "1.1.0"
 slug: "recipe_parser"
-description: "Haalt ingrediënten op van receptpagina's (o.a. voedingscentrum.nl) via een REST endpoint, voor gebruik in Home Assistant scripts richting Bring."
+description: "Haalt ingrediënten op van receptpagina's (o.a. voedingscentrum.nl) via een REST endpoint of een ingress-formulier, en zet ze in een Home Assistant todo-lijst (bijv. Bring)."
 url: "https://www.voedingscentrum.nl"
 arch:
   - aarch64
@@ -12,7 +12,12 @@ arch:
 init: false
 startup: application
 boot: auto
+ingress: true
+ingress_port: 5001
+panel_icon: mdi:silverware-fork-knife
+panel_title: "Recipe Parser"
+homeassistant_api: true
 ports:
   5001/tcp: 5001
 ports_description:
-  5001/tcp: "Recipe parser API (GET /parse?url=...)"
+  5001/tcp: "Recipe parser API (GET /parse?url=...) en ingress-formulier (/)"
