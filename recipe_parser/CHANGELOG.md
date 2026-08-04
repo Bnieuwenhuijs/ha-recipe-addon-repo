@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.1
+
+- Nieuw: `GET /debug` endpoint dat meldt of `SUPERVISOR_TOKEN` aanwezig is
+  en of de Home Assistant API bereikbaar is, zodat dit vanuit de browser
+  te controleren is zonder terminal/SSH-toegang tot de host.
+
 ## 1.1.0
 
 - Nieuw: ingress-webformulier (verschijnt als paneel in de HA-sidebar) om

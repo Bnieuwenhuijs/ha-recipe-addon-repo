@@ -165,5 +165,30 @@ def health():
     return jsonify({"status": "ok"})
 
 
+@app.route("/debug", methods=["GET"])
+def debug():
+    """
+    Diagnose-endpoint om via de browser te checken of de Home Assistant
+    API bereikbaar is, zonder dat daarvoor terminal/SSH-toegang nodig is.
+    """
+    info = {"supervisor_token_present": bool(SUPERVISOR_TOKEN)}
+
+    if SUPERVISOR_TOKEN:
+        try:
+            resp = requests.get(
+                f"{HA_API_BASE}/",
+                headers={"Authorization": f"Bearer {SUPERVISOR_TOKEN}"},
+                timeout=10,
+            )
+            info["ha_api_reachable"] = True
+            info["ha_api_status_code"] = resp.status_code
+            info["ha_api_response"] = resp.text[:200]
+        except requests.RequestException as e:
+            info["ha_api_reachable"] = False
+            info["ha_api_error"] = str(e)
+
+    return jsonify(info)
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5001)

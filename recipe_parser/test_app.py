@@ -70,5 +70,39 @@ class IndexRouteTests(unittest.TestCase):
         self.assertIn("Vul een recept-URL in".encode(), resp.data)
 
 
+class DebugRouteTests(unittest.TestCase):
+    def setUp(self):
+        rp.app.config["TESTING"] = True
+        self.client = rp.app.test_client()
+
+    @patch.object(rp, "SUPERVISOR_TOKEN", None)
+    def test_debug_without_token(self):
+        resp = self.client.get("/debug")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.get_json(), {"supervisor_token_present": False})
+
+    @patch.object(rp, "SUPERVISOR_TOKEN", "test-token")
+    @patch("recipe_parser.requests.get")
+    def test_debug_with_token_reachable(self, mock_get):
+        mock_get.return_value = FakeResponse(text='{"message": "API running."}')
+        resp = self.client.get("/debug")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["supervisor_token_present"])
+        self.assertTrue(data["ha_api_reachable"])
+        self.assertEqual(data["ha_api_status_code"], 200)
+
+    @patch.object(rp, "SUPERVISOR_TOKEN", "test-token")
+    @patch("recipe_parser.requests.get")
+    def test_debug_with_token_unreachable(self, mock_get):
+        mock_get.side_effect = rp.requests.ConnectionError("no route to host")
+        resp = self.client.get("/debug")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.get_json()
+        self.assertTrue(data["supervisor_token_present"])
+        self.assertFalse(data["ha_api_reachable"])
+        self.assertIn("no route to host", data["ha_api_error"])
+
+
 if __name__ == "__main__":
     unittest.main()
