@@ -79,7 +79,9 @@ class DebugRouteTests(unittest.TestCase):
     def test_debug_without_token(self):
         resp = self.client.get("/debug")
         self.assertEqual(resp.status_code, 200)
-        self.assertEqual(resp.get_json(), {"supervisor_token_present": False})
+        data = resp.get_json()
+        self.assertFalse(data["supervisor_token_present"])
+        self.assertIn("env_var_names", data)
 
     @patch.object(rp, "SUPERVISOR_TOKEN", "test-token")
     @patch("recipe_parser.requests.get")

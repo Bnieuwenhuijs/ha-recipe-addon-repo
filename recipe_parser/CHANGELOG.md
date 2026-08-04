@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.2
+
+- `/debug` toont nu ook alle namen (niet de waarden) van omgevingsvariabelen
+  die de container daadwerkelijk heeft gekregen. Nodig om te achterhalen
+  waarom `SUPERVISOR_TOKEN` ontbrak ondanks `homeassistant_api: true` en
+  een volledige herinstallatie van de add-on.
+
 ## 1.1.1
 
 - Nieuw: `GET /debug` endpoint dat meldt of `SUPERVISOR_TOKEN` aanwezig is

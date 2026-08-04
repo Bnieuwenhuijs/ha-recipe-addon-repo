@@ -171,7 +171,13 @@ def debug():
     Diagnose-endpoint om via de browser te checken of de Home Assistant
     API bereikbaar is, zonder dat daarvoor terminal/SSH-toegang nodig is.
     """
-    info = {"supervisor_token_present": bool(SUPERVISOR_TOKEN)}
+    info = {
+        "supervisor_token_present": bool(SUPERVISOR_TOKEN),
+        # Alleen namen, geen waarden - zodat we kunnen zien wat de
+        # container daadwerkelijk aan omgevingsvariabelen heeft gekregen
+        # zonder geheimen bloot te leggen.
+        "env_var_names": sorted(os.environ.keys()),
+    }
 
     if SUPERVISOR_TOKEN:
         try:
