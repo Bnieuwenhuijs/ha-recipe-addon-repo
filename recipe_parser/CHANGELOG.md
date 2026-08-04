@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.3
+
+- Root cause gevonden voor de ontbrekende `SUPERVISOR_TOKEN`: `run.sh`
+  gebruikte het gewone `#!/usr/bin/env bash` shebang, waardoor het op de
+  s6-overlay-gebaseerde HA-images een gesaneerd environment kreeg (alleen
+  `PATH`/`PWD`/`OLDPWD`/`SHLVL`, bevestigd via `/debug`'s env_var_names).
+  `run.sh` gebruikt nu `#!/usr/bin/with-contenv bashio`, de standaard voor
+  HA add-ons, waarmee het script wel toegang krijgt tot de echte
+  container-omgevingsvariabelen zoals `SUPERVISOR_TOKEN`.
+
 ## 1.1.2
 
 - `/debug` toont nu ook alle namen (niet de waarden) van omgevingsvariabelen
