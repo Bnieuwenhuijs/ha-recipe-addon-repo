@@ -51,7 +51,7 @@ class IndexRouteTests(unittest.TestCase):
         self.assertIn("200 gram volkoren tagliatelle".encode(), resp.data)
 
     @patch.object(rp, "SUPERVISOR_TOKEN", "test-token")
-    @patch("recipe_parser.requests.post")
+    @patch("recipe_parser.http_session.post")
     @patch("recipe_parser.requests.get")
     def test_post_with_supervisor_token_adds_items(self, mock_get, mock_post):
         mock_get.return_value = FakeResponse(text=load_fixture("chinese_kool.html"))

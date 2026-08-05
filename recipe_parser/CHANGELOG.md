@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.4
+
+- De 17 (of hoeveel dan ook) `todo.add_item`-calls per recept hergebruiken
+  nu één `requests.Session()` in plaats van voor elk ingrediënt een nieuwe
+  TCP-verbinding naar de Supervisor op te zetten. Verhelpt merkbare
+  traagheid bij het toevoegen aan de todo-lijst binnen Home Assistant.
+
 ## 1.1.3
 
 - Root cause gevonden voor de ontbrekende `SUPERVISOR_TOKEN`: `run.sh`

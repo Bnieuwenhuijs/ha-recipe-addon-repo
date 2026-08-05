@@ -28,9 +28,14 @@ SUPERVISOR_TOKEN = os.environ.get("SUPERVISOR_TOKEN")
 HA_API_BASE = "http://supervisor/core/api"
 DEFAULT_TODO_ENTITY = "todo.thuis"
 
+# Eén hergebruikte sessie voor de todo.add_item-calls naar de Supervisor,
+# zodat de TCP-connectie hergebruikt wordt in plaats van er per ingrediënt
+# (tot wel 17x per recept) een nieuwe op te zetten.
+http_session = requests.Session()
+
 
 def add_ingredient_to_todo(entity_id: str, item: str):
-    resp = requests.post(
+    resp = http_session.post(
         f"{HA_API_BASE}/services/todo/add_item",
         headers={
             "Authorization": f"Bearer {SUPERVISOR_TOKEN}",
