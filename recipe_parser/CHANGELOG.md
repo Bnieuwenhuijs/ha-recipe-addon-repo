@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.2.1
+
+- Fix: `bring_catalog.py` werd niet naar het container-image gekopieerd,
+  waardoor 1.2.0 crashte met `ModuleNotFoundError: No module named
+  'bring_catalog'` en de add-on in een herstartlus belandde. De Dockerfile
+  kopieert nu alle modules ineens.
+- Toegevoegd: `test_packaging.py`, die faalt zodra een geïmporteerde module
+  niet door een `COPY` in de Dockerfile gedekt wordt.
+
 ## 1.2.0
 
 - Ingrediënten worden nu gesplitst in een artikelnaam als titel en de
