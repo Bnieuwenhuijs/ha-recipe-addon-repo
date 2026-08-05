@@ -51,10 +51,11 @@ class IndexRouteTests(unittest.TestCase):
         self.assertIn("200 gram volkoren tagliatelle".encode(), resp.data)
 
     @patch.object(rp, "SUPERVISOR_TOKEN", "test-token")
-    @patch("recipe_parser.http_session.post")
+    @patch("recipe_parser._session")
     @patch("recipe_parser.requests.get")
-    def test_post_with_supervisor_token_adds_items(self, mock_get, mock_post):
+    def test_post_with_supervisor_token_adds_items(self, mock_get, mock_session):
         mock_get.return_value = FakeResponse(text=load_fixture("chinese_kool.html"))
+        mock_post = mock_session.return_value.post
         mock_post.return_value = FakeResponse(status_code=200)
         resp = self.client.post(
             "/", data={"url": "https://example.com/recept", "entity_id": "todo.thuis"}

@@ -13,7 +13,9 @@ Response:
 
 import os
 import re
+import threading
 import unicodedata
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from flask import Flask, request, jsonify, render_template
 import requests
@@ -32,17 +34,39 @@ SUPERVISOR_TOKEN = os.environ.get("SUPERVISOR_TOKEN")
 HA_API_BASE = "http://supervisor/core/api"
 DEFAULT_TODO_ENTITY = "todo.thuis"
 
-# Eén hergebruikte sessie voor de todo.add_item-calls naar de Supervisor,
-# zodat de TCP-connectie hergebruikt wordt in plaats van er per ingrediënt
-# (tot wel 17x per recept) een nieuwe op te zetten.
-http_session = requests.Session()
+# Elk ingrediënt kost een aparte todo.add_item-call, en Home Assistant geeft
+# die service pas terug als Bring het item in de cloud heeft opgeslagen (~1
+# seconde per stuk). Achter elkaar duurt een recept van 11 ingrediënten
+# daardoor ruim 10 seconden, dus voeren we ze in kleine groepjes tegelijk uit.
+# Bewust bescheiden: elk item is een eigen schrijfactie naar Bring, en met een
+# paar tegelijk halen we vrijwel de hele winst zonder Bring te overvragen.
+MAX_PARALLEL_ADDS = 5
+
+# requests.Session is niet gegarandeerd thread-safe, dus krijgt elke thread
+# zijn eigen sessie. Binnen een thread blijft de verbinding hergebruikt.
+_local = threading.local()
+
+
+def _session() -> requests.Session:
+    session = getattr(_local, "session", None)
+    if session is None:
+        session = _local.session = requests.Session()
+    return session
+
+
+# Eén vaste pool voor de hele add-on: de threads (en dus hun verbindingen naar
+# de Supervisor) blijven bestaan tussen recepten door, en het aantal gelijktijdige
+# schrijfacties richting Bring blijft begrensd, ook als er meerdere tabbladen open staan.
+_add_pool = ThreadPoolExecutor(
+    max_workers=MAX_PARALLEL_ADDS, thread_name_prefix="todo-add"
+)
 
 
 def add_ingredient_to_todo(entity_id: str, item: str, description: str = ""):
     payload = {"entity_id": entity_id, "item": item}
     if description:
         payload["description"] = description
-    resp = http_session.post(
+    resp = _session().post(
         f"{HA_API_BASE}/services/todo/add_item",
         headers={
             "Authorization": f"Bearer {SUPERVISOR_TOKEN}",
@@ -52,6 +76,32 @@ def add_ingredient_to_todo(entity_id: str, item: str, description: str = ""):
         timeout=10,
     )
     resp.raise_for_status()
+
+
+def add_ingredients_to_todo(entity_id: str, items):
+    """
+    Zet alle ingrediënten op de lijst en geef terug hoeveel er gelukt zijn en
+    welke niet. Mislukte items worden niet opnieuw geprobeerd: todo.add_item
+    is niet idempotent, dus een retry na een timeout kan een dubbel item
+    opleveren. Liever eerlijk melden wat er misging.
+    """
+    if not items:
+        return 0, []
+
+    failed = {}
+    futures = {
+        _add_pool.submit(add_ingredient_to_todo, entity_id, title, description): index
+        for index, (title, description) in enumerate(items)
+    }
+    for future in as_completed(futures):
+        index = futures[future]
+        try:
+            future.result()
+        except requests.RequestException:
+            failed[index] = items[index][0]
+
+    # Mislukte items in receptvolgorde, niet in de volgorde waarin ze terugkwamen.
+    return len(items) - len(failed), [failed[i] for i in sorted(failed)]
 
 
 FRACTIONS = "½¼¾⅓⅔⅛⅜⅝⅞"
@@ -122,6 +172,26 @@ def _build_lookup():
 LOOKUP = _build_lookup()
 
 
+def _build_matchers():
+    """
+    Compileer alle zoektermen één keer. Dit moet vooraf: er zijn meer termen
+    dan de regex-cache van de standaardbibliotheek aankan, dus re.search()
+    zou anders bij elk ingrediënt élk patroon opnieuw compileren.
+    """
+    matchers = []
+    for term, canonical in LOOKUP.items():
+        # Term moet aan het begin van een woord staan. Korte termen ('sla',
+        # 'kip') moeten een heel woord zijn, anders matchen ze in 'slagroom'.
+        pattern = r"(?<![a-z0-9])" + re.escape(term)
+        if len(term) < 4:
+            pattern += r"(?![a-z0-9])"
+        matchers.append((re.compile(pattern), len(term), canonical))
+    return matchers
+
+
+MATCHERS = _build_matchers()
+
+
 def match_bring_item(name: str):
     """
     Zoek de Bring-artikelnaam die bij deze ingrediëntnaam hoort. Bij meerdere
@@ -133,15 +203,10 @@ def match_bring_item(name: str):
     best_key = None
     best_name = None
 
-    for term, canonical in LOOKUP.items():
-        # Term moet aan het begin van een woord staan. Korte termen ('sla',
-        # 'kip') moeten een heel woord zijn, anders matchen ze in 'slagroom'.
-        pattern = r"(?<![a-z0-9])" + re.escape(term)
-        if len(term) < 4:
-            pattern += r"(?![a-z0-9])"
-        match = re.search(pattern, norm)
+    for pattern, length, canonical in MATCHERS:
+        match = pattern.search(norm)
         if match:
-            key = (match.start(), -len(term))
+            key = (match.start(), -length)
             if best_key is None or key < best_key:
                 best_key, best_name = key, canonical
 
@@ -247,13 +312,7 @@ def index():
                         "warning",
                     )
                 else:
-                    added, failed = 0, []
-                    for title, description in items:
-                        try:
-                            add_ingredient_to_todo(entity_id, title, description)
-                            added += 1
-                        except requests.RequestException:
-                            failed.append(title)
+                    added, failed = add_ingredients_to_todo(entity_id, items)
                     if failed:
                         message, message_class = (
                             f"{added}/{len(ingredients)} ingrediënten toegevoegd aan "

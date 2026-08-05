@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.3.0
+
+Een recept van 11 ingrediënten toevoegen duurde ongeveer 12 seconden, met
+een stil scherm tot alles klaar was. Opgemeten waar die tijd heen ging:
+
+| onderdeel                  | 1.2.1  | nu     |
+|----------------------------|--------|--------|
+| receptpagina ophalen       | 0,20 s | 0,20 s |
+| HTML parsen                | 0,06 s | 0,06 s |
+| ingrediënten splitsen (11x)| 0,60 s | 0,003 s|
+| toevoegen aan de lijst     | ~11 s  | ~3 s   |
+
+- De zoektermen voor het matchen op Bring-artikelen worden nu één keer
+  gecompileerd. Er zijn er meer (772) dan in de regex-cache van Python
+  passen (512), waardoor élk patroon bij ieder ingrediënt opnieuw werd
+  gecompileerd. Dit deel is nu ~180x sneller.
+- Ingrediënten worden nu in groepjes van maximaal 5 tegelijk toegevoegd.
+  Home Assistant geeft `todo.add_item` pas terug als Bring het item in de
+  cloud heeft opgeslagen (~1 seconde per stuk), dus achter elkaar wachten
+  was de grootste kostenpost. Mislukte items worden nog steeds per stuk
+  gemeld, in receptvolgorde, en worden bewust niet opnieuw geprobeerd:
+  `todo.add_item` is niet idempotent, dus een retry na een timeout kan een
+  dubbel item opleveren.
+- Het formulier laat nu meteen "Bezig met ophalen en toevoegen…" zien, in
+  plaats van een stil scherm tot alles klaar is.
+
 ## 1.2.1
 
 - Fix: `bring_catalog.py` werd niet naar het container-image gekopieerd,

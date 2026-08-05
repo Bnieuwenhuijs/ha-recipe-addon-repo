@@ -14,11 +14,13 @@
     ul { padding-left: 1.2rem; }
     li { margin-bottom: 0.2rem; }
     .detail { color: #666; }
+    .busy { color: #555; }
+    [hidden] { display: none; }
   </style>
 </head>
 <body>
   <h1>Recept naar boodschappenlijst</h1>
-  <form method="post">
+  <form method="post" id="recipe-form">
     <label for="url">Recept-URL</label>
     <input type="url" id="url" name="url" required value="{{ url or '' }}"
            placeholder="https://www.voedingscentrum.nl/recepten/...">
@@ -26,8 +28,21 @@
     <label for="entity_id">Boodschappenlijst (todo-entity)</label>
     <input type="text" id="entity_id" name="entity_id" value="{{ entity_id }}">
 
-    <button type="submit">Toevoegen</button>
+    <button type="submit" id="submit-button">Toevoegen</button>
   </form>
+
+  <!-- Het toevoegen duurt een paar seconden (elk item gaat naar Bring), dus
+       meteen laten zien dat er iets gebeurt in plaats van een stil scherm. -->
+  <p class="busy" id="busy" hidden>Bezig met ophalen en toevoegen aan de lijst…</p>
+  <script>
+    document.getElementById('recipe-form').addEventListener('submit', function () {
+      document.getElementById('busy').hidden = false;
+      var button = document.getElementById('submit-button');
+      button.textContent = 'Bezig…';
+      // Pas ná het versturen uitschakelen, anders gaat de submit niet door.
+      setTimeout(function () { button.disabled = true; }, 0);
+    });
+  </script>
 
   {% if message %}
     <p class="{{ message_class }}">{{ message }}</p>
