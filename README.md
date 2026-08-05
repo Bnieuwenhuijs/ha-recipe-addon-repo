@@ -26,6 +26,13 @@ en de gevonden ingrediënten worden direct via de Home Assistant API
 (`todo.add_item`) aan die lijst toegevoegd - geen aparte `rest_command`
 of script nodig.
 
+Elk ingrediënt wordt gesplitst in een artikelnaam (de titel) en de
+hoeveelheid (de omschrijving), dus "400 gram prei" wordt een taak **Prei**
+met omschrijving *400 gram*. De artikelnaam wordt daarbij gematcht tegen
+de artikelen die Bring zelf kent (zie `recipe_parser/bring_catalog.py`),
+zodat Bring het juiste icoon toont - ook als het recept een andere
+schrijfwijze gebruikt ("hüttenkäse" wordt "Huttenkaas").
+
 ### Endpoint
 
 ```
@@ -37,9 +44,17 @@ GET /parse?url=<recept-url>
 ```json
 {
   "ingredients": ["200 gram volkoren tagliatelle", "100 gram prei", "..."],
+  "items": [
+    {"title": "Pasta", "description": "200 gram volkoren tagliatelle"},
+    {"title": "Prei", "description": "100 gram"}
+  ],
   "source_url": "https://www.voedingscentrum.nl/recepten/gezond-recept/..."
 }
 ```
+
+`items` bevat dezelfde ingrediënten, maar gesplitst in een Bring-artikelnaam
+en de hoeveelheid - direct bruikbaar als `item` en `description` voor
+`todo.add_item`.
 
 **Fouten:**
 

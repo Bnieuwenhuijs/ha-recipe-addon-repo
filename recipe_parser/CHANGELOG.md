@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.2.0
+
+- Ingrediënten worden nu gesplitst in een artikelnaam als titel en de
+  hoeveelheid als omschrijving ("400 gram prei" wordt "Prei" met
+  omschrijving "400 gram"), zoals gebruikelijk in Home Assistant en Bring.
+- De artikelnaam wordt gematcht tegen de artikelen die Bring zelf kent
+  (`bring_catalog.py`), inclusief synoniemen en enkelvoud/meervoud, zodat
+  Bring het juiste icoon toont: "hüttenkäse" wordt "Huttenkaas",
+  "2 bosuien" wordt "Bosui / Lente-ui", "1 tomaat" wordt "Tomaten".
+- Bij het matchen wint het woord dat vooraan staat, zodat "sojasaus met
+  minder zout" als "Soja saus" wordt herkend en niet als "Zout".
+- `GET /parse` geeft naast `ingredients` nu ook `items` terug met per
+  ingrediënt een `title` en `description`. Het bestaande `ingredients`-veld
+  is ongewijzigd.
+
 ## 1.1.4
 
 - De 17 (of hoeveel dan ook) `todo.add_item`-calls per recept hergebruiken

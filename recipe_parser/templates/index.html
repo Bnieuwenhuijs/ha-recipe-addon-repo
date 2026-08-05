@@ -12,6 +12,8 @@
     .error { color: #c0392b; }
     .warning { color: #b8860b; }
     ul { padding-left: 1.2rem; }
+    li { margin-bottom: 0.2rem; }
+    .detail { color: #666; }
   </style>
 </head>
 <body>
@@ -31,11 +33,11 @@
     <p class="{{ message_class }}">{{ message }}</p>
   {% endif %}
 
-  {% if ingredients %}
-    <h2>Gevonden ingrediënten ({{ ingredients|length }})</h2>
+  {% if items %}
+    <h2>Gevonden ingrediënten ({{ items|length }})</h2>
     <ul>
-      {% for ing in ingredients %}
-        <li>{{ ing }}</li>
+      {% for title, description in items %}
+        <li>{{ title }}{% if description %} <span class="detail">{{ description }}</span>{% endif %}</li>
       {% endfor %}
     </ul>
   {% endif %}

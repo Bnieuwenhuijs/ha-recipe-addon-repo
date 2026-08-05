@@ -63,6 +63,19 @@ class IndexRouteTests(unittest.TestCase):
         self.assertEqual(mock_post.call_count, 7)
         self.assertIn("Alle 7 ingrediënten toegevoegd".encode(), resp.data)
 
+        # Titel is de Bring-artikelnaam, de hoeveelheid gaat naar description.
+        payloads = [call.kwargs["json"] for call in mock_post.call_args_list]
+        self.assertIn(
+            {"entity_id": "todo.thuis", "item": "Linzen",
+             "description": "200 gram gedroogde linzen"},
+            payloads,
+        )
+        self.assertIn(
+            {"entity_id": "todo.thuis", "item": "Champignons",
+             "description": "200 gram"},
+            payloads,
+        )
+
     @patch.object(rp, "SUPERVISOR_TOKEN", None)
     def test_post_without_url_shows_error(self):
         resp = self.client.post("/", data={"url": "", "entity_id": "todo.thuis"})
