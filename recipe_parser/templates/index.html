@@ -2,59 +2,109 @@
 <html lang="nl">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Recipe Parser</title>
   <style>
-    body { font-family: sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
+    body { font-family: sans-serif; max-width: 44rem; margin: 2rem auto; padding: 0 1rem; }
     label { display: block; margin-top: 1rem; font-weight: bold; }
-    input[type=text], input[type=url] { width: 100%; padding: 0.5rem; box-sizing: border-box; }
-    button { margin-top: 1rem; padding: 0.5rem 1rem; }
+    textarea, input[type=text] { width: 100%; padding: 0.5rem; box-sizing: border-box;
+                                 font: inherit; }
+    textarea { min-height: 8rem; resize: vertical; }
+    button { margin-top: 1rem; padding: 0.6rem 1.2rem; font: inherit; }
     .success { color: #1a7f37; }
-    .error { color: #c0392b; }
+    .error   { color: #c0392b; }
     .warning { color: #b8860b; }
+    .busy    { color: #555; }
+    .hint    { color: #666; font-weight: normal; font-size: 0.9em; }
     ul { padding-left: 1.2rem; }
-    li { margin-bottom: 0.2rem; }
+    li { margin-bottom: 0.25rem; }
     .detail { color: #666; }
-    .busy { color: #555; }
+    .recipes { list-style: none; padding-left: 0; }
+    .recipes li { padding: 0.4rem 0; border-bottom: 1px solid #eee; }
+    .recipes .meta { color: #666; font-size: 0.9em; }
+    .failed { color: #c0392b; }
     [hidden] { display: none; }
   </style>
 </head>
 <body>
   <h1>Recept naar boodschappenlijst</h1>
-  <form method="post" id="recipe-form">
-    <label for="url">Recept-URL</label>
-    <input type="url" id="url" name="url" required value="{{ url or '' }}"
-           placeholder="https://www.voedingscentrum.nl/recepten/...">
 
-    <label for="entity_id">Boodschappenlijst (todo-entity)</label>
+  <form method="post" id="scan-form">
+    <label for="text">Recept-links
+      <span class="hint">- plak een link, of gewoon een stuk WhatsApp waar links in staan</span>
+    </label>
+    <textarea id="text" name="text" required
+              placeholder="https://www.voedingscentrum.nl/recepten/...&#10;&#10;of plak hier je WhatsApp-berichten met meerdere recepten">{{ text }}</textarea>
+
+    <label for="entity_id">Lijst in Home Assistant <span class="hint">- todo-entity</span></label>
     <input type="text" id="entity_id" name="entity_id" value="{{ entity_id }}">
 
-    <button type="submit" id="submit-button">Toevoegen</button>
+    <button type="submit" id="scan-button">Recepten zoeken</button>
   </form>
 
-  <!-- Het toevoegen duurt een paar seconden (elk item gaat naar Bring), dus
-       meteen laten zien dat er iets gebeurt in plaats van een stil scherm. -->
-  <p class="busy" id="busy" hidden>Bezig met ophalen en toevoegen aan de lijst…</p>
-  <script>
-    document.getElementById('recipe-form').addEventListener('submit', function () {
-      document.getElementById('busy').hidden = false;
-      var button = document.getElementById('submit-button');
-      button.textContent = 'Bezig…';
-      // Pas ná het versturen uitschakelen, anders gaat de submit niet door.
-      setTimeout(function () { button.disabled = true; }, 0);
-    });
-  </script>
+  <p class="busy" id="busy" hidden>Bezig…</p>
 
   {% if message %}
     <p class="{{ message_class }}">{{ message }}</p>
   {% endif %}
 
-  {% if items %}
-    <h2>Gevonden ingrediënten ({{ items|length }})</h2>
+  {% if recipes %}
+    <form method="post" id="add-form">
+      <input type="hidden" name="action" value="add">
+      <input type="hidden" name="entity_id" value="{{ entity_id }}">
+
+      <h2>Gevonden recepten ({{ recipes|length }})</h2>
+      <ul class="recipes">
+        {% for recipe in recipes %}
+          <li>
+            {% if recipe.error %}
+              <span class="failed">✗ {{ recipe.url }}</span><br>
+              <span class="meta failed">{{ recipe.error }}</span>
+            {% else %}
+              <label style="font-weight: normal; margin: 0;">
+                <input type="checkbox" name="recipe" value="{{ recipe.url }}" checked>
+                {{ recipe.title }}
+              </label>
+              <span class="meta">
+                {% if recipe.date %}{{ recipe.date }} &middot; {% endif %}
+                {{ recipe['items']|length }} ingrediënten
+              </span>
+            {% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+
+      <button type="submit" id="add-button">Toevoegen aan {{ entity_id }}</button>
+    </form>
+  {% endif %}
+
+  {% if merged %}
+    <h2>Boodschappenlijst ({{ merged|length }})</h2>
     <ul>
-      {% for title, description in items %}
+      {% for title, description in merged %}
         <li>{{ title }}{% if description %} <span class="detail">{{ description }}</span>{% endif %}</li>
       {% endfor %}
     </ul>
   {% endif %}
+
+  <!-- Ophalen duurt een seconde, toevoegen een paar seconden (elk artikel gaat
+       naar Bring). Meteen laten zien dat er iets gebeurt. -->
+  <script>
+    function busyOnSubmit(formId, buttonId, label) {
+      var form = document.getElementById(formId);
+      if (!form) return;
+      form.addEventListener('submit', function () {
+        var busy = document.getElementById('busy');
+        busy.textContent = label;
+        busy.hidden = false;
+        var button = document.getElementById(buttonId);
+        button.textContent = 'Bezig…';
+        // Pas ná het versturen uitschakelen, anders gaat de submit niet door.
+        setTimeout(function () { button.disabled = true; }, 0);
+      });
+    }
+    busyOnSubmit('scan-form', 'scan-button', 'Recepten ophalen…');
+    busyOnSubmit('add-form', 'add-button', 'Toevoegen aan de lijst…');
+  </script>
 </body>
 </html>

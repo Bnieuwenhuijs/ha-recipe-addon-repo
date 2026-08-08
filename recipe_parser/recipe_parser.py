@@ -1,9 +1,13 @@
 """
-Kleine microservice die recept-URL's (met focus op voedingscentrum.nl)
-ophaalt en de ingrediëntenlijst als JSON teruggeeft, zodat Home Assistant
-dit via rest_command kan aanroepen en doorzetten naar Bring.
+Kleine microservice die receptpagina's ophaalt, de ingrediënten eruit haalt
+en ze in een Home Assistant todo-lijst (bijv. Bring) zet.
 
-Endpoint:
+Het formulier accepteert geplakte tekst met meerdere links erin - bijvoorbeeld
+een stuk WhatsApp-geschiedenis waarin recepten zijn gedeeld. Alle links worden
+opgehaald, je kiest welke recepten mee moeten, en artikelen die in meerdere
+recepten voorkomen worden tot één regel samengevoegd.
+
+Endpoint voor automatisering:
     GET /parse?url=<recept-url>
 
 Response:
@@ -60,6 +64,14 @@ def _session() -> requests.Session:
 # schrijfacties richting Bring blijft begrensd, ook als er meerdere tabbladen open staan.
 _add_pool = ThreadPoolExecutor(
     max_workers=MAX_PARALLEL_ADDS, thread_name_prefix="todo-add"
+)
+
+# Aparte pool voor het ophalen van receptpagina's, zodat een lijst van vijf
+# recepten in ongeveer de tijd van één opgehaald is. Los van de pool hierboven,
+# zodat ophalen en toevoegen elkaar niet in de weg zitten.
+MAX_PARALLEL_FETCHES = 5
+_fetch_pool = ThreadPoolExecutor(
+    max_workers=MAX_PARALLEL_FETCHES, thread_name_prefix="recipe-fetch"
 )
 
 
@@ -428,61 +440,175 @@ def _drop_equipment(ingredients):
     return [i for i in ingredients if not is_kitchen_equipment(i)]
 
 
+# Links uit geplakte tekst. Sluit afsluitende leestekens uit, want in
+# "kijk hier: https://site.nl/recept." hoort de punt niet bij de link.
+URL_RE = re.compile(r"https?://[^\s<>\"']+")
+
+# WhatsApp zet voor elk bericht "[05/07, 13:43] Naam: ". De link staat soms op
+# een volgende regel, dus onthouden we de laatst geziene datum.
+WHATSAPP_LINE_RE = re.compile(r"^\[(\d{1,2}[/-]\d{1,2})[^\]]*\]")
+
+
+def find_recipe_links(text: str):
+    """
+    Haal de links uit geplakte tekst (bijv. een stuk WhatsApp-geschiedenis),
+    met de datum van het bericht waar ze in stonden. Dubbele links vallen weg.
+    """
+    links = []
+    seen = set()
+    date = ""
+
+    for line in text.splitlines():
+        stamp = WHATSAPP_LINE_RE.match(line.strip())
+        if stamp:
+            date = stamp.group(1)
+        for url in URL_RE.findall(line):
+            url = url.rstrip(".,;:!?)")
+            if url not in seen:
+                seen.add(url)
+                links.append({"url": url, "date": date})
+    return links
+
+
+def extract_title(soup, fallback: str = "") -> str:
+    """Naam van het recept, zodat je in het overzicht ziet wat je aanvinkt."""
+    for tag in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(tag.string or "")
+        except (ValueError, TypeError):
+            continue
+        stack = [data]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, list):
+                stack.extend(node)
+            elif isinstance(node, dict):
+                if isinstance(node.get("recipeIngredient"), list):
+                    name = str(node.get("name") or "").strip()
+                    if name:
+                        return name
+                stack.extend(node.values())
+
+    for candidate in (soup.find("h1"), soup.find("title")):
+        if candidate:
+            name = candidate.get_text(strip=True)
+            if name:
+                return name
+    return fallback
+
+
+def fetch_recipe(link):
+    """Haal één recept op. Fouten komen terug in het resultaat, niet als crash."""
+    url = link["url"]
+    result = {"url": url, "date": link.get("date", ""), "title": url,
+              "items": [], "error": ""}
+    try:
+        resp = requests.get(url, headers=HEADERS, timeout=15)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        result["error"] = f"kon pagina niet ophalen ({e.__class__.__name__})"
+        return result
+
+    soup = BeautifulSoup(resp.text, "html.parser")
+    result["title"] = extract_title(soup, fallback=url)
+    ingredients = extract_ingredients(resp.text)
+    if not ingredients:
+        result["error"] = "geen ingrediënten gevonden op deze pagina"
+        return result
+
+    result["items"] = [split_ingredient(i) for i in ingredients]
+    return result
+
+
+def fetch_recipes(links):
+    """Alle recepten tegelijk ophalen, in de volgorde waarin ze geplakt zijn."""
+    if not links:
+        return []
+    results = list(_fetch_pool.map(fetch_recipe, links))
+    return results
+
+
+def merge_items(item_lists):
+    """
+    Voeg dezelfde artikelen uit meerdere recepten samen tot één regel. De
+    hoeveelheden komen achter elkaar te staan ("2 tenen + 1 teentje") in
+    plaats van opgeteld: eenheden uit vrije tekst optellen gaat een keer mis,
+    en dan koop je de verkeerde hoeveelheid.
+    """
+    merged = {}
+    for items in item_lists:
+        for title, description in items:
+            if title not in merged:
+                merged[title] = []
+            if description:
+                # Niet ontdubbelen: drie keer "1" betekent drie uien.
+                merged[title].append(description)
+    return [(title, " + ".join(parts)) for title, parts in merged.items()]
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
-    ingredients = None
-    items = []
-    message = None
-    message_class = None
-    url = ""
+    text = ""
     entity_id = DEFAULT_TODO_ENTITY
+    recipes = []       # gevonden recepten om aan te vinken (stap 1)
+    merged = []        # samengevoegde boodschappenlijst (stap 2)
+    message = message_class = None
 
     if request.method == "POST":
-        url = request.form.get("url", "").strip()
         entity_id = request.form.get("entity_id", "").strip() or DEFAULT_TODO_ENTITY
 
-        if not url:
-            message, message_class = "Vul een recept-URL in.", "error"
-        else:
-            try:
-                resp = requests.get(url, headers=HEADERS, timeout=10)
-                resp.raise_for_status()
-            except requests.RequestException as e:
-                message, message_class = f"Kon pagina niet ophalen: {e}", "error"
+        if request.form.get("action") == "add":
+            # Stap 2: de aangevinkte recepten opnieuw ophalen en toevoegen.
+            urls = request.form.getlist("recipe")
+            if not urls:
+                message, message_class = "Vink minstens één recept aan.", "error"
             else:
-                ingredients = extract_ingredients(resp.text)
-                items = [split_ingredient(i) for i in ingredients]
-                if not ingredients:
+                fetched = fetch_recipes([{"url": u} for u in urls])
+                merged = merge_items([r["items"] for r in fetched if not r["error"]])
+                mislukt = [r for r in fetched if r["error"]]
+
+                if not merged:
                     message, message_class = (
-                        "Geen ingrediënten gevonden - paginastructuur kan gewijzigd zijn.",
-                        "error",
-                    )
+                        "Geen ingrediënten om toe te voegen.", "error")
                 elif not SUPERVISOR_TOKEN:
                     message, message_class = (
-                        "Ingrediënten gevonden, maar niet toegevoegd: geen SUPERVISOR_TOKEN "
-                        "beschikbaar (draai je dit lokaal buiten Home Assistant?).",
-                        "warning",
-                    )
+                        "Ingrediënten gevonden, maar niet toegevoegd: geen "
+                        "SUPERVISOR_TOKEN beschikbaar (draai je dit lokaal buiten "
+                        "Home Assistant?).", "warning")
                 else:
-                    added, failed = add_ingredients_to_todo(entity_id, items)
+                    added, failed = add_ingredients_to_todo(entity_id, merged)
+                    deel = (f"{added}/{len(merged)}" if failed else f"Alle {added}")
+                    tekst = f"{deel} artikelen toegevoegd aan {entity_id}."
                     if failed:
-                        message, message_class = (
-                            f"{added}/{len(ingredients)} ingrediënten toegevoegd aan "
-                            f"{entity_id}. Mislukt: {', '.join(failed)}",
-                            "warning",
-                        )
-                    else:
-                        message, message_class = (
-                            f"Alle {added} ingrediënten toegevoegd aan {entity_id}.",
-                            "success",
-                        )
+                        tekst += f" Mislukt: {', '.join(failed)}."
+                    if mislukt:
+                        tekst += (" Niet opgehaald: "
+                                  + ", ".join(r["url"] for r in mislukt) + ".")
+                    message = tekst
+                    message_class = "warning" if (failed or mislukt) else "success"
+        else:
+            # Stap 1: links uit de geplakte tekst halen en de recepten ophalen.
+            text = request.form.get("text", "").strip()
+            links = find_recipe_links(text)
+            if not text:
+                message, message_class = "Plak eerst een recept-link of tekst.", "error"
+            elif not links:
+                message, message_class = (
+                    "Geen links gevonden in deze tekst.", "error")
+            else:
+                recipes = fetch_recipes(links)
+                merged = merge_items([r["items"] for r in recipes if not r["error"]])
+                if all(r["error"] for r in recipes):
+                    message, message_class = (
+                        "Geen van de links leverde ingrediënten op.", "error")
 
     return render_template(
         "index.html",
-        items=items,
+        text=text,
+        recipes=recipes,
+        merged=merged,
         message=message,
         message_class=message_class,
-        url=url,
         entity_id=entity_id,
     )
 

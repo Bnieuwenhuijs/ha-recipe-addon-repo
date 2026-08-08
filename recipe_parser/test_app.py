@@ -1,7 +1,7 @@
 """
-Tests voor de / (formulier) route, met gemockte requests.get/requests.post
-zodat er geen netwerktoegang (naar het recept of naar Home Assistant) nodig
-is. Draai met:
+Tests voor het formulier: stap 1 zoekt recepten in geplakte tekst, stap 2 zet
+de aangevinkte recepten op de lijst. Alle HTTP-verkeer is gemockt, dus er is
+geen netwerk of Home Assistant nodig. Draai met:
 
     python -m unittest test_app.py -v
 """
@@ -13,6 +13,9 @@ from unittest.mock import patch
 import recipe_parser as rp
 
 FIXTURES_DIR = pathlib.Path(__file__).parent / "fixtures"
+
+VOEDINGSCENTRUM = "https://www.voedingscentrum.nl/recepten/gezond-recept/x.aspx"
+LEUKERECEPTEN = "https://www.leukerecepten.nl/recepten/couscous-salade-met-feta/"
 
 
 def load_fixture(name: str) -> str:
@@ -29,6 +32,17 @@ class FakeResponse:
             raise rp.requests.HTTPError(f"status {self.status_code}")
 
 
+def fake_pages(mapping, default=None):
+    """Geef per URL een andere pagina terug."""
+    def _get(url, **kwargs):
+        if url in mapping:
+            return FakeResponse(text=load_fixture(mapping[url]))
+        if default is not None:
+            return FakeResponse(text=load_fixture(default))
+        return FakeResponse(status_code=404)
+    return _get
+
+
 class IndexRouteTests(unittest.TestCase):
     def setUp(self):
         rp.app.config["TESTING"] = True
@@ -39,49 +53,107 @@ class IndexRouteTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn(b"todo.thuis", resp.data)
 
+    def test_post_without_text_shows_error(self):
+        resp = self.client.post("/", data={"text": "", "entity_id": "todo.thuis"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("Plak eerst".encode(), resp.data)
+
+    def test_post_with_text_but_no_links_shows_error(self):
+        resp = self.client.post("/", data={"text": "wat eten we vandaag?"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("Geen links gevonden".encode(), resp.data)
+
+    @patch("recipe_parser.requests.get")
+    def test_scan_lists_every_recipe_it_found(self, mock_get):
+        mock_get.side_effect = fake_pages({
+            VOEDINGSCENTRUM: "tagliatelle.html",
+            LEUKERECEPTEN: "leukerecepten_couscoussalade.html",
+        })
+        pasted = (
+            f"[05/07, 13:55] Bart: Ik kook vandaag dit!\n{VOEDINGSCENTRUM}\n"
+            f"[05/07, 14:18] Lieke: {LEUKERECEPTEN}\n"
+        )
+        resp = self.client.post("/", data={"text": pasted})
+        self.assertEqual(resp.status_code, 200)
+        # Beide recepten staan aanvinkbaar in het overzicht.
+        self.assertIn(VOEDINGSCENTRUM.encode(), resp.data)
+        self.assertIn(LEUKERECEPTEN.encode(), resp.data)
+        self.assertIn(b"05/07", resp.data)
+        # En de samengevoegde lijst is alvast te zien.
+        self.assertIn("Boodschappenlijst".encode(), resp.data)
+
+    @patch("recipe_parser.requests.get")
+    def test_scan_reports_a_link_it_could_not_fetch(self, mock_get):
+        mock_get.side_effect = fake_pages({VOEDINGSCENTRUM: "tagliatelle.html"})
+        pasted = f"{VOEDINGSCENTRUM}\nhttps://www.ah.nl/r/1196876\n"
+        resp = self.client.post("/", data={"text": pasted})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn(b"1196876", resp.data)
+        self.assertIn("kon pagina niet ophalen".encode(), resp.data)
+        # De rest gaat gewoon door: de ingrediënten van het andere recept
+        # staan er wel.
+        self.assertIn(b"Prei", resp.data)
+        self.assertIn("Champignons".encode(), resp.data)
+
+    def test_add_without_a_selected_recipe_shows_error(self):
+        resp = self.client.post("/", data={"action": "add"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("minstens één recept".encode(), resp.data)
+
     @patch.object(rp, "SUPERVISOR_TOKEN", None)
     @patch("recipe_parser.requests.get")
-    def test_post_without_supervisor_token_shows_warning(self, mock_get):
-        mock_get.return_value = FakeResponse(text=load_fixture("tagliatelle.html"))
+    def test_add_without_supervisor_token_shows_warning(self, mock_get):
+        mock_get.side_effect = fake_pages({VOEDINGSCENTRUM: "tagliatelle.html"})
         resp = self.client.post(
-            "/", data={"url": "https://example.com/recept", "entity_id": "todo.thuis"}
+            "/", data={"action": "add", "recipe": VOEDINGSCENTRUM}
         )
         self.assertEqual(resp.status_code, 200)
         self.assertIn("geen SUPERVISOR_TOKEN".encode(), resp.data)
-        self.assertIn("200 gram volkoren tagliatelle".encode(), resp.data)
 
     @patch.object(rp, "SUPERVISOR_TOKEN", "test-token")
     @patch("recipe_parser._session")
     @patch("recipe_parser.requests.get")
-    def test_post_with_supervisor_token_adds_items(self, mock_get, mock_session):
-        mock_get.return_value = FakeResponse(text=load_fixture("chinese_kool.html"))
+    def test_add_puts_the_merged_list_on_the_todo_list(self, mock_get, mock_session):
+        mock_get.side_effect = fake_pages({
+            VOEDINGSCENTRUM: "tagliatelle.html",
+            LEUKERECEPTEN: "leukerecepten_couscoussalade.html",
+        })
         mock_post = mock_session.return_value.post
         mock_post.return_value = FakeResponse(status_code=200)
-        resp = self.client.post(
-            "/", data={"url": "https://example.com/recept", "entity_id": "todo.thuis"}
-        )
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual(mock_post.call_count, 7)
-        self.assertIn("Alle 7 ingrediënten toegevoegd".encode(), resp.data)
 
-        # Titel is de Bring-artikelnaam, de hoeveelheid gaat naar description.
+        resp = self.client.post("/", data={
+            "action": "add",
+            "recipe": [VOEDINGSCENTRUM, LEUKERECEPTEN],
+            "entity_id": "todo.thuis",
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("toegevoegd aan todo.thuis".encode(), resp.data)
+
         payloads = [call.kwargs["json"] for call in mock_post.call_args_list]
-        self.assertIn(
-            {"entity_id": "todo.thuis", "item": "Linzen",
-             "description": "200 gram gedroogde"},
-            payloads,
-        )
-        self.assertIn(
-            {"entity_id": "todo.thuis", "item": "Champignons",
-             "description": "200 gram"},
-            payloads,
-        )
+        titles = [p["item"] for p in payloads]
+        # 10 + 10 ingredienten, maar Walnoten zit in beide recepten.
+        self.assertEqual(len(titles), len(set(titles)), "geen dubbele artikelen")
+        self.assertIn("Prei", titles)
+        self.assertIn("Couscous", titles)
 
-    @patch.object(rp, "SUPERVISOR_TOKEN", None)
-    def test_post_without_url_shows_error(self):
-        resp = self.client.post("/", data={"url": "", "entity_id": "todo.thuis"})
+    @patch.object(rp, "SUPERVISOR_TOKEN", "test-token")
+    @patch("recipe_parser._session")
+    @patch("recipe_parser.requests.get")
+    def test_only_the_selected_recipes_are_added(self, mock_get, mock_session):
+        mock_get.side_effect = fake_pages({
+            VOEDINGSCENTRUM: "tagliatelle.html",
+            LEUKERECEPTEN: "leukerecepten_couscoussalade.html",
+        })
+        mock_post = mock_session.return_value.post
+        mock_post.return_value = FakeResponse(status_code=200)
+
+        resp = self.client.post(
+            "/", data={"action": "add", "recipe": LEUKERECEPTEN}
+        )
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("Vul een recept-URL in".encode(), resp.data)
+        titles = [c.kwargs["json"]["item"] for c in mock_post.call_args_list]
+        self.assertIn("Couscous", titles)
+        self.assertNotIn("Prei", titles)
 
 
 class DebugRouteTests(unittest.TestCase):

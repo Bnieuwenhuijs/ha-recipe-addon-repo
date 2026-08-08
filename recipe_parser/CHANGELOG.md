@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.6.0
+
+Meerdere recepten in één keer, bedoeld voor de gewoonte om recepten in een
+WhatsApp-groep te delen en ze pas bij het boodschappen doen te verwerken.
+
+- Het invoerveld accepteert nu geplakte tekst in plaats van één URL. Alle
+  links worden eruit gevist, ook als ze middenin een zin staan of op een
+  eigen regel onder het bericht. Eén losse link plakken werkt gewoon nog.
+- De datum uit het WhatsApp-bericht (`[12/07, 12:40]`) komt bij het recept
+  te staan, zodat je bij een maand aan berichten ziet wat oud is.
+- Je krijgt eerst een overzicht van de gevonden recepten met hun naam en
+  aantal ingrediënten, en vinkt aan wat mee moet. Pas daarna gaat er iets
+  naar de lijst.
+- Artikelen die in meerdere recepten voorkomen worden één regel, met de
+  hoeveelheden achter elkaar: "Knoflook - 2 tenen + 1 teentje + 2 teentjes".
+  Er wordt niet opgeteld; eenheden uit vrije tekst optellen gaat een keer
+  mis en dan koop je de verkeerde hoeveelheid. Gelijke hoeveelheden blijven
+  ook staan, want drie keer "1" betekent drie uien.
+- Een link die niet opgehaald kan worden, wordt bij dat recept gemeld en
+  houdt de rest niet tegen.
+- De recepten worden tegelijk opgehaald: vijf stuks in ongeveer 3 seconden.
+
+Let op: links van de deelknop in de Albert Heijn-app (`ah.nl/r/...`) werken
+niet. Die geven ook in een gewone browser "pagina niet gevonden"; het volledige
+adres (`ah.nl/allerhande/recept/...`) werkt wel.
+
 ## 1.5.0
 
 Naast voedingscentrum.nl werken nu ook **leukerecepten.nl** en **ah.nl**.

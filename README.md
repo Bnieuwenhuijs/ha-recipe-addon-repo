@@ -29,14 +29,35 @@ gebruiken, dus de kans is groot dat andere sites ook gewoon werken. Levert
 een pagina niets bruikbaars op, dan geeft de add-on een duidelijke melding
 in plaats van een halve lijst.
 
+**Werkt niet:** de korte links van de deelknop in de Albert Heijn-app
+(`ah.nl/r/1196876`). Die zijn niet meer op te halen - ook een gewone browser
+krijgt "pagina niet gevonden". Open het recept in de browser en deel het
+adres uit de adresbalk (`ah.nl/allerhande/recept/...`), dat werkt wel.
+
 ### Webformulier (ingress)
 
 De add-on verschijnt na installatie als paneel in de HA-sidebar (via
 [ingress](https://developers.home-assistant.io/docs/add-ons/presentation/#ingress)).
-Daar vul je een recept-URL en een todo-entity in (standaard `todo.thuis`)
-en de gevonden ingrediënten worden direct via de Home Assistant API
-(`todo.add_item`) aan die lijst toegevoegd - geen aparte `rest_command`
+Daar plak je een recept-link - of gewoon een stuk tekst met links erin,
+bijvoorbeeld een kopie uit een WhatsApp-groep waarin jullie recepten delen:
+
+```
+[05/07, 13:55] Bart: Ik kook vandaag dit!
+https://www.voedingscentrum.nl/recepten/gezond-recept/aardappel-knolselderijgratin.aspx
+[12/07, 12:40] Bart: https://www.leukerecepten.nl/recepten/kikkererwten-curry/
+```
+
+Alle links worden eruit gevist en tegelijk opgehaald. Je krijgt een overzicht
+met de naam van elk recept, de datum uit het bericht en het aantal
+ingrediënten, en vinkt aan welke mee moeten. Pas daarna gaan ze via de Home
+Assistant API (`todo.add_item`) naar de lijst - geen aparte `rest_command`
 of script nodig.
+
+Artikelen die in meerdere recepten voorkomen worden één regel, met de
+hoeveelheden achter elkaar: **Knoflook** met omschrijving
+*2 tenen + 1 teentje + 2 teentjes*. Er wordt bewust niet opgeteld, want
+eenheden uit vrije tekst optellen gaat een keer mis - en dan koop je de
+verkeerde hoeveelheid.
 
 Elk ingrediënt wordt gesplitst in een artikelnaam (de titel) en de
 hoeveelheid (de omschrijving), dus "400 gram prei" wordt een taak **Prei**
