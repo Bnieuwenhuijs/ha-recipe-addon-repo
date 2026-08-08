@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.8.0
+
+Recepten die als tekst geplakt worden, zonder link erbij.
+
+- Een geplakt recept met een kopje `INGREDIENTS` (of `Ingrediënten`) en
+  daaronder de ingrediënten wordt herkend als recept. De titel is de eerste
+  regel, de lijst loopt tot `STEPS`, `Bereiding`, `NOTES` of een lege regel.
+  Bulletpoints met •, - of * worden weggehaald.
+- Zulke recepten staan gewoon tussen de links in het overzicht, met hun
+  datum uit het WhatsApp-bericht en de vermelding "uit tekst". Je kunt dus
+  in één keer links én tekstrecepten plakken.
+- Hoeveelheden in deze recepten hebben een eigen schrijfwijze, die nu
+  begrepen wordt: gemengde breuken (`44 1/3 ml`, `1 1/4 ml`) en Engelse
+  maten (`tbsp`, `tsp`, `pinch`, `cup`, `clove`, `oz`).
+- Een woord dat de titel al zegt in een andere portievorm wordt niet meer
+  herhaald: "3 knoflookteentjes" wordt "Knoflook - 3", en
+  "200 g bloemkoolroosjes" wordt "Bloemkool - 200 g". Een woord dat iets
+  ánders betekent blijft wel staan, dus "citroensap" en "kipfilet" gaan niet
+  verloren.
+- Beschrijvende woorden achteraan tellen niet meer mee voor de titel, zodat
+  "komijnzaad gemalen" en "komijnzaad" op één regel samenkomen.
+- "uit blik" hoort bij de hoeveelheid, niet bij de naam: "kidneybonen uit
+  blik" wordt de titel "Kidneybonen".
+- Fixes: mosterdzaad belandde onder Mosterd en sesamzaad onder Sesam;
+  tarwenoedels en mie worden nu Noedels.
+
 ## 1.7.0
 
 Getoetst aan een volledige WhatsApp-export met 224 unieke receptlinks over

@@ -55,7 +55,26 @@ https://www.voedingscentrum.nl/recepten/gezond-recept/aardappel-knolselderijgrat
 [12/07, 12:40] Bart: https://www.leukerecepten.nl/recepten/kikkererwten-curry/
 ```
 
-Alle links worden eruit gevist en tegelijk opgehaald. Je krijgt een overzicht
+Ook recepten die als **tekst** in de groep zijn gezet worden herkend - zonder
+link, zoals recepten die je met een AI hebt laten maken. Voorwaarde is een
+kopje boven de ingrediënten:
+
+```
+[19/07, 16:44] Bart: Noord-Indiase bonen-groentecurry
+
+INGREDIENTS
+• 1 grote ui, fijngesneden
+• 3 knoflookteentjes, fijngehakt
+
+STEPS
+1. Verhit de olie in een pan.
+```
+
+Het kopje mag `INGREDIENTS` of `Ingrediënten` heten; de lijst loopt tot
+`STEPS`, `Bereiding`, `NOTES` of een lege regel. Links en tekstrecepten mogen
+door elkaar in dezelfde plakbeurt staan.
+
+Alles wordt tegelijk opgehaald. Je krijgt een overzicht
 met de naam van elk recept, de datum uit het bericht en het aantal
 ingrediënten, en vinkt aan welke mee moeten. Pas daarna gaan ze via de Home
 Assistant API (`todo.add_item`) naar de lijst - geen aparte `rest_command`

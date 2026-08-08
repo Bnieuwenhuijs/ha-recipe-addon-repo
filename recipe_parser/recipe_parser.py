@@ -151,7 +151,10 @@ UNITS = (
     "bosjes|bosje|bossen|bos|bollen|bol|kroppen|krop|"
     "stuks|stuk|plakjes|plakje|plakken|plak|sneetjes|sneetje|"
     "bolletjes|bolletje|handjes|handje|handvol|"
-    "potjes|potje|potten|pot|flesjes|flesje|kopjes|kopje|kop"
+    "potjes|potje|potten|pot|flesjes|flesje|kopjes|kopje|kop|"
+    # Engelse maten, zoals in recepten die met Claude gemaakt zijn
+    "tablespoons|tablespoon|tbsp|tbs|teaspoons|teaspoon|tsp|"
+    "pinches|pinch|cups|cup|cloves|clove|ounces|ounce|oz|pounds|pound|lb"
 )
 
 # Woorden die iets zeggen over het product, maar niet het product zelf zijn.
@@ -165,6 +168,7 @@ QUALIFIER_WORDS = {
     "magere", "mager", "halfvolle", "volle", "kleine", "grote", "fijne",
     "grove", "eetrijpe", "griekse", "italiaanse", "verspakket", "extra",
     "mini", "jonge", "oude", "zoete", "verpakte", "voorgesneden",
+    "dunne", "dikke", "gemalen", "geraspte", "gehakte", "gesnipperde",
 }
 
 # Keukengerei dat sommige sites tussen de ingrediënten zet (leukerecepten.nl
@@ -176,17 +180,24 @@ KITCHEN_EQUIPMENT = {
     "vergiet", "rasp", "deegroller", "airfryer", "barbecue", "bbq",
 }
 
-# Voorloop met hoeveelheid en/of maat: "200 gram", "1 teentje", "½", "2 eetlepels".
+# Voorloop met hoeveelheid en/of maat: "200 gram", "1 teentje", "½",
+# "2 eetlepels", "3 tbsp", en gemengde breuken als "44 1/3 ml" en "1 1/4 ml".
+# De gemengde breuk moet vooraan staan, anders pakt hij alleen het hele getal.
+AMOUNT = (
+    rf"\d+\s+\d+\s*/\s*\d+"      # 44 1/3
+    rf"|\d+\s*/\s*\d+"           # 1/2
+    rf"|\d+(?:[.,]\d+)?"         # 400  of  4.9
+    rf"|[{FRACTIONS}]"           # ½
+)
 QUANTITY_RE = re.compile(
-    rf"^\s*(?:(?:\d+(?:[.,]\d+)?(?:\s*/\s*\d+)?|[{FRACTIONS}])\s*)?"
-    rf"(?:(?:{UNITS})\b\s*)?",
+    rf"^\s*(?:(?:{AMOUNT})\s*)?(?:(?:{UNITS})\b\s*)?",
     re.IGNORECASE,
 )
 
 # Alles hierna is een toelichting op het artikel, niet de artikelnaam zelf:
 # "sojasaus met minder zout", "rauwkost, zoals rodekool", "kaas (geraspt)".
 QUALIFIER_RE = re.compile(
-    r"\s*(?:[,;(]|\bmet\b|\bzonder\b|\bof\b|\bzoals\b|\bnaar smaak\b)",
+    r"\s*(?:[,;(]|\bmet\b|\bzonder\b|\bof\b|\bzoals\b|\buit\b|\bnaar smaak\b)",
     re.IGNORECASE,
 )
 
@@ -299,6 +310,18 @@ def _title_forms(title: str):
     return forms
 
 
+# Woorden die alleen zeggen in welke vorm je het product krijgt. Staan ze
+# vast aan de productnaam ("knoflookteentjes", "bloemkoolroosjes"), dan is dat
+# een schrijfwijze van hetzelfde artikel en niet iets anders.
+PORTION_SUFFIXES = {
+    "teentje", "teentjes", "teen", "tenen", "blokje", "blokjes",
+    "roosje", "roosjes", "reepje", "reepjes", "ring", "ringen",
+    "partje", "partjes", "stukje", "stukjes", "plakje", "plakjes",
+    "blaadje", "blaadjes", "takje", "takjes", "sneetje", "sneetjes",
+    "bolletje", "bolletjes", "staafje", "staafjes",
+}
+
+
 def _is_same_product(term: str, title: str) -> bool:
     """
     Is dit hetzelfde artikel als de titel, alleen anders geschreven
@@ -307,11 +330,18 @@ def _is_same_product(term: str, title: str) -> bool:
     ('tagliatelle' bij 'Pasta', 'kipfilet' bij 'Kip') blijft juist staan.
     """
     left = re.sub(r"[\s/-]", "", _normalize(term))
-    right = re.sub(r"[\s/-]", "", _normalize(title))
-    if left == right:
-        return True
-    shared = len(os.path.commonprefix([left, right]))
-    return shared >= 4 and min(len(left), len(right)) >= 4
+    # Een titel als "Bosui / Lente-ui" bestaat uit meerdere schrijfwijzen;
+    # het volstaat als de term met één daarvan overeenkomt.
+    for part in [title] + re.split(r"\s*/\s*", title):
+        right = re.sub(r"[\s/-]", "", _normalize(part))
+        if not right:
+            continue
+        if left == right:
+            return True
+        shared = len(os.path.commonprefix([left, right]))
+        if shared >= 4 and min(len(left), len(right)) >= 4:
+            return True
+    return False
 
 
 def _without_title_words(text: str, title: str, term: str) -> str:
@@ -328,17 +358,36 @@ def _without_title_words(text: str, title: str, term: str) -> str:
     for word in text.split():
         # Leestekens weg, zodat "(olijf)olie" ook als "olijfolie" herkend wordt.
         bare = re.sub(r"[^a-z0-9]", "", _normalize(word))
-        if bare and bare in forms:
+        if bare and (bare in forms or _is_portion_of(bare, forms)):
             continue
         kept.append(word)
     return " ".join(kept)
 
 
-def _without_leading_qualifiers(name: str) -> str:
-    """Haal beschrijvende woorden vooraan weg: 'biologische volkorenorzo'."""
+def _is_portion_of(word: str, forms) -> bool:
+    """'knoflookteentjes' is knoflook, 'citroensap' is iets anders."""
+    for form in forms:
+        if len(form) >= 4 and word.startswith(form):
+            if word[len(form):] in PORTION_SUFFIXES:
+                return True
+    return False
+
+
+def _without_qualifier_words(name: str) -> str:
+    """
+    Haal beschrijvende woorden aan de randen weg: 'biologische volkorenorzo'
+    wordt 'volkorenorzo', 'komijnzaad gemalen' wordt 'komijnzaad'. Zo krijgen
+    twee recepten die hetzelfde anders opschrijven dezelfde titel.
+    """
     words = name.split()
-    while len(words) > 1 and _normalize(words[0]).strip("().,;:") in QUALIFIER_WORDS:
+
+    def is_qualifier(word):
+        return _normalize(word).strip("().,;:") in QUALIFIER_WORDS
+
+    while len(words) > 1 and is_qualifier(words[0]):
         words = words[1:]
+    while len(words) > 1 and is_qualifier(words[-1]):
+        words = words[:-1]
     return " ".join(words)
 
 
@@ -364,13 +413,18 @@ def split_ingredient(text: str):
     head = name_part[: qualifier.start()].strip() if qualifier else name_part
     tail = name_part[qualifier.start():].strip() if qualifier else ""
 
+    if head.endswith("-"):
+        # "zonnebloem- of arachideolie": het product staat pas na het streepje,
+        # dus hier valt niets af te splitsen.
+        head, tail = name_part, ""
+
     matched, term = match_bring_item(head)
     core = head
     if not matched:
-        # Niets herkend: probeer het nog eens zonder de bijvoeglijke woorden
-        # vooraan. Dat gebeurt pas nu, zodat catalogusnamen die er zelf mee
+        # Niets herkend: probeer het nog eens zonder de beschrijvende woorden
+        # eromheen. Dat gebeurt pas nu, zodat catalogusnamen die er zelf mee
         # beginnen ("Zoete aardappelen", "Witte bonen") ongemoeid blijven.
-        core = _without_leading_qualifiers(head)
+        core = _without_qualifier_words(head)
         if core != head:
             matched, term = match_bring_item(core)
 
@@ -556,6 +610,81 @@ def find_recipe_links(text: str):
     return links
 
 
+# Een bericht in een WhatsApp-export: "[19/07, 16:44] Naam: eerste regel".
+WHATSAPP_MESSAGE_RE = re.compile(r"^\[(\d{1,2}[/-]\d{1,2})[^\]]*\]\s*[^:]{1,60}?:\s?(.*)$")
+
+# Recepten die als tekst geplakt worden (bijv. gemaakt met Claude) hebben een
+# kopje boven de ingrediënten en daarna een kopje voor de bereiding.
+INGREDIENTS_HEADING_RE = re.compile(
+    r"^\s*(?:ingredi[eë]nt(?:en|s)?|ingredients)\s*:?\s*$", re.IGNORECASE
+)
+NEXT_SECTION_RE = re.compile(
+    r"^\s*(?:steps?|stappen|bereiding(?:swijze)?|instructions?|method|"
+    r"notes?|notities|opmerkingen|tips?|voorbereiding)\s*:?\s*$",
+    re.IGNORECASE,
+)
+BULLET_RE = re.compile(r"^\s*[-*•‣▪●⁃·]\s*")
+
+
+def _split_messages(text: str):
+    """Deel geplakte tekst op in losse berichten, met hun datum."""
+    messages = []
+    for line in text.splitlines():
+        match = WHATSAPP_MESSAGE_RE.match(line)
+        if match:
+            messages.append({"date": match.group(1), "lines": [match.group(2)]})
+        elif messages:
+            messages[-1]["lines"].append(line)
+        else:
+            # Tekst zonder WhatsApp-kopregel, bijv. één recept geplakt.
+            messages.append({"date": "", "lines": [line]})
+    return messages
+
+
+def _ingredients_from_lines(lines):
+    """De regels tussen het kopje 'Ingredients' en het volgende kopje."""
+    start = None
+    for index, line in enumerate(lines):
+        if INGREDIENTS_HEADING_RE.match(line):
+            start = index + 1
+            break
+    if start is None:
+        return []
+
+    ingredients = []
+    for line in lines[start:]:
+        stripped = line.strip()
+        if not stripped:
+            # Een lege regel sluit de lijst af, maar niet vóór het begin.
+            if ingredients:
+                break
+            continue
+        if NEXT_SECTION_RE.match(stripped):
+            break
+        ingredients.append(BULLET_RE.sub("", stripped).strip())
+    return [i for i in ingredients if i]
+
+
+def find_text_recipes(text: str):
+    """
+    Recepten die als tekst geplakt zijn in plaats van als link. De titel is de
+    eerste regel van het bericht; de ingrediënten staan onder een kopje.
+    """
+    recipes = []
+    for index, message in enumerate(_split_messages(text)):
+        ingredients = _ingredients_from_lines(message["lines"])
+        if not ingredients:
+            continue
+        title = next((l.strip() for l in message["lines"] if l.strip()), "Recept")
+        recipes.append({
+            "index": index,
+            "title": title,
+            "date": message["date"],
+            "ingredients": _drop_equipment(ingredients),
+        })
+    return recipes
+
+
 def extract_title(soup, fallback: str = "") -> str:
     """Naam van het recept, zodat je in het overzicht ziet wat je aanvinkt."""
     blocks = _json_ld_blocks(soup)
@@ -589,8 +718,8 @@ def _looks_like_a_missing_page(resp) -> bool:
 def fetch_recipe(link):
     """Haal één recept op. Fouten komen terug in het resultaat, niet als crash."""
     url = link["url"]
-    result = {"url": url, "date": link.get("date", ""), "title": url,
-              "items": [], "error": ""}
+    result = {"value": url, "url": url, "date": link.get("date", ""),
+              "title": url, "items": [], "error": ""}
     try:
         # Doorstuurlinks (share.google) volgt requests zelf; de korte
         # AH-vorm moet eerst herschreven worden.
@@ -618,8 +747,49 @@ def fetch_recipes(links):
     """Alle recepten tegelijk ophalen, in de volgorde waarin ze geplakt zijn."""
     if not links:
         return []
-    results = list(_fetch_pool.map(fetch_recipe, links))
-    return results
+    return list(_fetch_pool.map(fetch_recipe, links))
+
+
+# Aanvinkwaarde voor een recept dat als tekst geplakt is; links gebruiken
+# hun eigen URL. Zo weet stap 2 waar elk aangevinkt recept vandaan komt.
+TEXT_RECIPE_PREFIX = "tekst:"
+
+
+def collect_recipes(text: str):
+    """
+    Alles wat in de geplakte tekst staat: recepten achter een link én
+    recepten die als tekst zijn meegestuurd, in de volgorde van de tekst.
+    """
+    recipes = fetch_recipes(find_recipe_links(text))
+    for recipe in find_text_recipes(text):
+        recipes.append({
+            "value": f"{TEXT_RECIPE_PREFIX}{recipe['index']}",
+            "url": "",
+            "date": recipe["date"],
+            "title": recipe["title"],
+            "items": [split_ingredient(i) for i in recipe["ingredients"]],
+            "error": "",
+        })
+    return recipes
+
+
+def recipes_for_values(text: str, values):
+    """De aangevinkte recepten opnieuw opbouwen uit de oorspronkelijke tekst."""
+    wanted = set(values)
+    links = [{"url": v} for v in values if not v.startswith(TEXT_RECIPE_PREFIX)]
+    chosen = fetch_recipes(links)
+
+    for recipe in find_text_recipes(text):
+        if f"{TEXT_RECIPE_PREFIX}{recipe['index']}" in wanted:
+            chosen.append({
+                "value": f"{TEXT_RECIPE_PREFIX}{recipe['index']}",
+                "url": "",
+                "date": recipe["date"],
+                "title": recipe["title"],
+                "items": [split_ingredient(i) for i in recipe["ingredients"]],
+                "error": "",
+            })
+    return chosen
 
 
 def merge_items(item_lists):
@@ -652,12 +822,13 @@ def index():
         entity_id = request.form.get("entity_id", "").strip() or DEFAULT_TODO_ENTITY
 
         if request.form.get("action") == "add":
-            # Stap 2: de aangevinkte recepten opnieuw ophalen en toevoegen.
-            urls = request.form.getlist("recipe")
-            if not urls:
+            # Stap 2: de aangevinkte recepten opnieuw opbouwen en toevoegen.
+            gekozen = request.form.getlist("recipe")
+            text = request.form.get("text", "")
+            if not gekozen:
                 message, message_class = "Vink minstens één recept aan.", "error"
             else:
-                fetched = fetch_recipes([{"url": u} for u in urls])
+                fetched = recipes_for_values(text, gekozen)
                 merged = merge_items([r["items"] for r in fetched if not r["error"]])
                 mislukt = [r for r in fetched if r["error"]]
 
@@ -681,20 +852,20 @@ def index():
                     message = tekst
                     message_class = "warning" if (failed or mislukt) else "success"
         else:
-            # Stap 1: links uit de geplakte tekst halen en de recepten ophalen.
+            # Stap 1: recepten uit de geplakte tekst halen (links én tekst).
             text = request.form.get("text", "").strip()
-            links = find_recipe_links(text)
             if not text:
                 message, message_class = "Plak eerst een recept-link of tekst.", "error"
-            elif not links:
-                message, message_class = (
-                    "Geen links gevonden in deze tekst.", "error")
             else:
-                recipes = fetch_recipes(links)
+                recipes = collect_recipes(text)
                 merged = merge_items([r["items"] for r in recipes if not r["error"]])
-                if all(r["error"] for r in recipes):
+                if not recipes:
                     message, message_class = (
-                        "Geen van de links leverde ingrediënten op.", "error")
+                        "Geen recepten gevonden: plak een link, of een recept met "
+                        "een kopje 'Ingredients' boven de ingrediënten.", "error")
+                elif all(r["error"] for r in recipes):
+                    message, message_class = (
+                        "Geen van de recepten leverde ingrediënten op.", "error")
 
     return render_template(
         "index.html",

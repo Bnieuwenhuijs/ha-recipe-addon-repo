@@ -145,6 +145,13 @@ SYNONYMS = {
     "rijstnoedels": "Noedels",
     "mihoen": "Noedels",
     "vermicelli": "Noedels",
+    "tarwenoedels": "Noedels",
+    "eiernoedels": "Noedels",
+    "mie": "Noedels",
+    # Zonder deze regels wint het kortere "mosterd" resp. "kokos" en belandt
+    # het zaad of de melk onder het verkeerde artikel.
+    "mosterdzaad": "Mosterdzaad",
+    "sesamzaad": "Sesamzaad",
     # Voorraadkast
     "sojasaus": "Soja saus",
     "ketjap": "Soja saus",
@@ -152,6 +159,9 @@ SYNONYMS = {
     "zonnebloemolie": "Olie",
     "sesamolie": "Olie",
     "bakolie": "Olie",
+    "arachideolie": "Olie",
+    "raapzaadolie": "Olie",
+    "koolzaadolie": "Olie",
     "bouillontablet": "Bouillon",
     "bouillonblokje": "Bouillon",
     "groentebouillon": "Bouillon",

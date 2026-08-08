@@ -59,10 +59,10 @@ class IndexRouteTests(unittest.TestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertIn("Plak eerst".encode(), resp.data)
 
-    def test_post_with_text_but_no_links_shows_error(self):
+    def test_post_with_text_but_no_recipe_shows_error(self):
         resp = self.client.post("/", data={"text": "wat eten we vandaag?"})
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("Geen links gevonden".encode(), resp.data)
+        self.assertIn("Geen recepten gevonden".encode(), resp.data)
 
     @patch("recipe_parser.requests.get")
     def test_scan_lists_every_recipe_it_found(self, mock_get):

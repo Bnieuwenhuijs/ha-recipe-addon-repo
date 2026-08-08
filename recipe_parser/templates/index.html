@@ -30,11 +30,11 @@
   <h1>Recept naar boodschappenlijst</h1>
 
   <form method="post" id="scan-form">
-    <label for="text">Recept-links
-      <span class="hint">- plak een link, of gewoon een stuk WhatsApp waar links in staan</span>
+    <label for="text">Recepten
+      <span class="hint">- plak links of hele recepten, bijvoorbeeld een stuk WhatsApp</span>
     </label>
     <textarea id="text" name="text" required
-              placeholder="https://www.voedingscentrum.nl/recepten/...&#10;&#10;of plak hier je WhatsApp-berichten met meerdere recepten">{{ text }}</textarea>
+              placeholder="https://www.voedingscentrum.nl/recepten/...&#10;&#10;of plak hier je WhatsApp-berichten: links en uitgeschreven recepten mogen door elkaar">{{ text }}</textarea>
 
     <label for="entity_id">Lijst in Home Assistant <span class="hint">- todo-entity</span></label>
     <input type="text" id="entity_id" name="entity_id" value="{{ entity_id }}">
@@ -52,6 +52,9 @@
     <form method="post" id="add-form">
       <input type="hidden" name="action" value="add">
       <input type="hidden" name="entity_id" value="{{ entity_id }}">
+      <!-- De geplakte tekst gaat mee, zodat stap 2 de recepten die als tekst
+           zijn meegestuurd opnieuw kan uitlezen. -->
+      <textarea name="text" hidden>{{ text }}</textarea>
 
       <h2>Gevonden recepten ({{ recipes|length }})</h2>
       <ul class="recipes">
@@ -62,12 +65,13 @@
               <span class="meta failed">{{ recipe.error }}</span>
             {% else %}
               <label style="font-weight: normal; margin: 0;">
-                <input type="checkbox" name="recipe" value="{{ recipe.url }}" checked>
+                <input type="checkbox" name="recipe" value="{{ recipe.value }}" checked>
                 {{ recipe.title }}
               </label>
               <span class="meta">
                 {% if recipe.date %}{{ recipe.date }} &middot; {% endif %}
                 {{ recipe['items']|length }} ingrediënten
+                {% if not recipe.url %}&middot; uit tekst{% endif %}
               </span>
             {% endif %}
           </li>
