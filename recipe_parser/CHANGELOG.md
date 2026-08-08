@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.4.0
+
+- De omschrijving herhaalt de titel niet meer: "200 gram groenten" onder de
+  titel "Groenten" wordt nu gewoon "200 gram", en "1 appel" onder "Appels"
+  wordt "1". Dat geldt ook als het recept het anders schrijft dan Bring
+  ("hüttenkäse" bij "Huttenkaas", "pinda's" bij "Pindanoten").
+- Woorden die wél iets toevoegen blijven staan, want die heb je nodig in de
+  winkel: "5 gram verse", "3 eetlepels halfvolle", "1 eetlepel vloeibare".
+- Een specifieker product wordt nooit weggegooid: "200 gram kipfilet" blijft
+  onder de titel "Kip" staan, en "volkoren tagliatelle" onder "Pasta".
+- Fix: "(olijf)olie" belandde onder Olijven in plaats van Olijfolie, en
+  "(groente)bouillontablet" onder Groenten in plaats van Bouillon. Bij dit
+  soort haakjes vooraan wint nu het juiste artikel.
+
 ## 1.3.0
 
 Een recept van 11 ingrediënten toevoegen duurde ongeveer 12 seconden, met

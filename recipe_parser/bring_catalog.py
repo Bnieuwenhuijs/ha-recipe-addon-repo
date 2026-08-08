@@ -104,7 +104,9 @@ SYNONYMS = {
     "paksoi": "Kool",
     "sperzieboon": "Sperziebonen",
     "radijs": "Radijzen",
-    "olijf": "Olijven",
+    # Voedingscentrum schrijft olijfolie als "(olijf)olie"; zonder deze regel
+    # wint "olijf" en belandt de olie onder Olijven.
+    "(olijf)olie": "Olijfolie",
     "verse munt": "Munt",
     "verse koriander": "Koriander",
     "verse basilicum": "Basilicum",
@@ -141,6 +143,11 @@ SYNONYMS = {
     "bouillontablet": "Bouillon",
     "bouillonblokje": "Bouillon",
     "groentebouillon": "Bouillon",
+    # Ook hier zet Voedingscentrum een deel tussen haakjes vooraan, waardoor
+    # anders "(groente)" wint en het tablet onder Groenten belandt.
+    "(groente)bouillontablet": "Bouillon",
+    "(groente)bouillonblokje": "Bouillon",
+    "(groente)bouillon": "Bouillon",
     "gedroogde linzen": "Linzen",
     "kikkererwt": "Kikkererwten",
     "pinda": "Pindanoten",

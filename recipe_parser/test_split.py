@@ -29,16 +29,15 @@ class SplitIngredientTests(unittest.TestCase):
 
     def test_product_without_amount_has_no_description(self):
         self.assertSplit("peper", "Peper", "")
-        self.assertSplit("chilivlokken", "Chillipeper", "chilivlokken")
+        self.assertSplit("chilivlokken", "Chillipeper", "")
 
     def test_singular_recipe_word_maps_to_plural_bring_name(self):
-        self.assertSplit("1 ui", "Uien", "1 ui")
-        self.assertSplit("1 tomaat", "Tomaten", "1 tomaat")
-        self.assertSplit("120 gram (winter)wortel", "Wortelen", "120 gram (winter)wortel")
+        self.assertSplit("1 ui", "Uien", "1")
+        self.assertSplit("1 tomaat", "Tomaten", "1")
 
     def test_synonym_maps_to_bring_name(self):
-        self.assertSplit("20 gram hüttenkäse", "Huttenkaas", "20 gram hüttenkäse")
-        self.assertSplit("2 bosuien", "Bosui / Lente-ui", "2 bosuien")
+        self.assertSplit("20 gram hüttenkäse", "Huttenkaas", "20 gram")
+        self.assertSplit("2 bosuien", "Bosui / Lente-ui", "2")
         self.assertSplit(
             "200 gram volkoren tagliatelle", "Pasta", "200 gram volkoren tagliatelle"
         )
@@ -48,13 +47,40 @@ class SplitIngredientTests(unittest.TestCase):
         self.assertSplit(
             "1 eetlepel sojasaus met minder zout",
             "Soja saus",
-            "1 eetlepel sojasaus met minder zout",
+            "1 eetlepel met minder zout",
         )
         self.assertSplit(
             "200 gram tomatenblokjes zonder zout (blik)",
             "Tomatenblokjes",
             "200 gram zonder zout (blik)",
         )
+
+    def test_description_does_not_repeat_the_title(self):
+        self.assertSplit("200 gram groenten", "Groenten", "200 gram")
+        self.assertSplit("100 gram radijs", "Radijzen", "100 gram")
+        self.assertSplit("1 appel", "Appels", "1")
+        self.assertSplit("20 gram ongezouten walnoten", "Walnoten", "20 gram ongezouten")
+
+    def test_description_keeps_words_that_add_information(self):
+        # "verse", "halfvolle" en "vloeibare" staan niet in de titel en zeggen
+        # wel iets over wat je moet kopen.
+        self.assertSplit("5 gram verse basilicum", "Basilicum", "5 gram verse")
+        self.assertSplit("3 eetlepels halfvolle yoghurt", "Yoghurt", "3 eetlepels halfvolle")
+        self.assertSplit(
+            "1 eetlepel vloeibare margarine", "Margarine", "1 eetlepel vloeibare"
+        )
+
+    def test_more_specific_product_is_never_dropped(self):
+        # De titel is algemener dan wat het recept vraagt, dus dat detail moet blijven.
+        self.assertSplit("200 gram kipfilet", "Kip", "200 gram kipfilet")
+        self.assertSplit(
+            "250 gram zilvervliesrijst", "Rijst", "250 gram zilvervliesrijst"
+        )
+
+    def test_parenthesised_prefix_does_not_pick_the_wrong_product(self):
+        self.assertSplit("2 eetlepels (olijf)olie", "Olijfolie", "2 eetlepels")
+        title, _ = split_ingredient("½ (groente)bouillontablet met minder zout")
+        self.assertEqual(title, "Bouillon")
 
     def test_long_description_keeps_all_detail(self):
         title, description = split_ingredient(

@@ -185,7 +185,7 @@ def _build_matchers():
         pattern = r"(?<![a-z0-9])" + re.escape(term)
         if len(term) < 4:
             pattern += r"(?![a-z0-9])"
-        matchers.append((re.compile(pattern), len(term), canonical))
+        matchers.append((re.compile(pattern), term, canonical))
     return matchers
 
 
@@ -194,23 +194,83 @@ MATCHERS = _build_matchers()
 
 def match_bring_item(name: str):
     """
-    Zoek de Bring-artikelnaam die bij deze ingrediëntnaam hoort. Bij meerdere
+    Zoek de Bring-artikelnaam die bij deze ingrediëntnaam hoort. Geeft de
+    Bring-naam terug plus het woord waarop hij gevonden is. Bij meerdere
     treffers wint de term die het vroegst in de tekst begint (het kernwoord
     staat vooraan: 'sojasaus met minder zout' is sojasaus, geen zout), en bij
     gelijke positie de langste term.
     """
     norm = _normalize(name)
     best_key = None
-    best_name = None
+    best = (None, None)
 
-    for pattern, length, canonical in MATCHERS:
+    for pattern, term, canonical in MATCHERS:
         match = pattern.search(norm)
         if match:
-            key = (match.start(), -length)
+            key = (match.start(), -len(term))
             if best_key is None or key < best_key:
-                best_key, best_name = key, canonical
+                best_key, best = key, (canonical, term)
 
-    return best_name
+    return best
+
+
+def _title_forms(title: str):
+    """Schrijfwijzen waarin de titel in de omschrijving terug kan komen."""
+    norm = _normalize(title)
+    # Zonder leestekens, zodat "pinda's" en "pindas" hetzelfde opleveren.
+    candidates = [re.sub(r"[^a-z0-9]", "", norm)]
+    candidates += [
+        re.sub(r"[^a-z0-9]", "", part) for part in re.split(r"[\s/-]+", norm)
+    ]
+
+    forms = set()
+    for candidate in candidates:
+        if not candidate:
+            continue
+        forms.add(candidate)
+        if candidate.endswith("en") and len(candidate) > 3:
+            forms.add(candidate[:-2])
+        elif candidate.endswith("s") and len(candidate) > 3:
+            forms.add(candidate[:-1])
+        else:
+            forms.add(candidate + "en")
+            forms.add(candidate + "s")
+    return forms
+
+
+def _is_same_product(term: str, title: str) -> bool:
+    """
+    Is dit hetzelfde artikel als de titel, alleen anders geschreven
+    ('bosuien' bij 'Bosui / Lente-ui', 'hüttenkäse' bij 'Huttenkaas')? Zo ja,
+    dan is het woord overbodig in de omschrijving. Iets specifiekers
+    ('tagliatelle' bij 'Pasta', 'kipfilet' bij 'Kip') blijft juist staan.
+    """
+    left = re.sub(r"[\s/-]", "", _normalize(term))
+    right = re.sub(r"[\s/-]", "", _normalize(title))
+    if left == right:
+        return True
+    shared = len(os.path.commonprefix([left, right]))
+    return shared >= 4 and min(len(left), len(right)) >= 4
+
+
+def _without_title_words(text: str, title: str, term: str) -> str:
+    """
+    Haal uit de omschrijving weg wat de titel al zegt, zodat er geen
+    "Groenten / 200 gram groenten" ontstaat. Woorden die wél iets toevoegen
+    ("verse", "halfvolle", "vloeibare") blijven staan.
+    """
+    forms = _title_forms(title)
+    if term and _is_same_product(term, title):
+        forms.update(_title_forms(term))
+
+    kept = []
+    for word in text.split():
+        # Leestekens weg, zodat "(olijf)olie" ook als "olijfolie" herkend wordt.
+        bare = re.sub(r"[^a-z0-9]", "", _normalize(word))
+        if bare and bare in forms:
+            continue
+        kept.append(word)
+    return " ".join(kept)
 
 
 def split_ingredient(text: str):
@@ -229,14 +289,16 @@ def split_ingredient(text: str):
     head = name_part[: qualifier.start()].strip() if qualifier else name_part
     tail = name_part[qualifier.start():].strip() if qualifier else ""
 
-    title = match_bring_item(head) or (head[:1].upper() + head[1:])
+    matched, term = match_bring_item(head)
+    title = matched or (head[:1].upper() + head[1:])
 
     if _normalize(title) == _normalize(head):
         parts = [quantity, tail]
     else:
         # De Bring-naam wijkt af van wat het recept schrijft ('Pasta' voor
-        # tagliatelle), dus de oorspronkelijke tekst hoort in de omschrijving.
-        parts = [quantity, head, tail]
+        # tagliatelle), dus de oorspronkelijke tekst hoort in de omschrijving -
+        # maar zonder de woorden die de titel al zegt.
+        parts = [quantity, _without_title_words(head, title, term), tail]
 
     description = " ".join(p for p in parts if p)
     description = re.sub(r"\s+([,;])", r"\1", description).strip(" ,;-")

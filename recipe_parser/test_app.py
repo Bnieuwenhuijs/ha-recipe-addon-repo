@@ -68,7 +68,7 @@ class IndexRouteTests(unittest.TestCase):
         payloads = [call.kwargs["json"] for call in mock_post.call_args_list]
         self.assertIn(
             {"entity_id": "todo.thuis", "item": "Linzen",
-             "description": "200 gram gedroogde linzen"},
+             "description": "200 gram gedroogde"},
             payloads,
         )
         self.assertIn(
