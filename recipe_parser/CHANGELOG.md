@@ -1,5 +1,45 @@
 # Changelog
 
+## 1.7.0
+
+Getoetst aan een volledige WhatsApp-export met 224 unieke receptlinks over
+33 sites. Daarvan werken er nu **205 (91%)**; dat waren er 149.
+
+- **Korte Albert Heijn-links werken nu.** De deelknop van de AH-app maakt
+  links als `ah.nl/r/1196876`, die zelf een 404 geven. Hetzelfde nummer
+  werkt wél als `ah.nl/allerhande/recept/R-R1196876`, en dat herschrijven we
+  nu. Dit redt 49 links - eerder stond in deze changelog dat ze niet op te
+  halen waren, dat klopte niet.
+- **Doorstuurlinks** (`share.google`, 44 stuks in de export) worden gevolgd
+  naar de echte receptsite.
+- JSON-LD met een letterlijke regelovergang in een tekst wordt nu toch
+  gelezen. Strikt genomen is dat ongeldige JSON, maar de ingrediënten
+  kloppen wel (savorysweets.nl).
+- Ook `type="application/ld+json; charset=utf-8"` telt nu mee.
+- De oude schema.org-sleutel `ingredients` wordt gelezen naast
+  `recipeIngredient`, maar alleen binnen een blok dat zichzelf een Recipe
+  noemt (libelle-lekker.be).
+- De kop-fallback voor sites zonder schema.org-gegevens kijkt nu naar h1
+  t/m h6 in plaats van alleen h2 en h3, en laat zich niet meer afkappen
+  door een tussenkop als "Voor 2 personen" (24baby.nl). Lijstjes in
+  navigatie, zijbalk of voettekst tellen niet mee, en hele alinea's ook
+  niet - dat is bereidingstekst, geen ingrediënt.
+- De add-on meldt zich als een gewone browser; een deel van de sites gaf
+  een onbekende client een 403 of een lege pagina.
+- Een verwijderd recept meldt nu "recept bestaat niet meer" in plaats van
+  "geen ingrediënten gevonden". Voedingscentrum stuurt zulke pagina's door
+  naar een 404-pagina maar meldt gewoon HTTP 200.
+
+Wat niet werkt, en waarom:
+
+| Link | Reden |
+|---|---|
+| instagram.com | een reel, geen receptpagina |
+| miljuschka.nl | blokkeert niet-browsers (403) |
+| overzichtspagina's ("5x de lekkerste curry's") | geen los recept |
+| eerstkoken.blogspot.com | recept staat als lopende tekst, geen lijst |
+| verwijderde recepten | de pagina bestaat niet meer |
+
 ## 1.6.0
 
 Meerdere recepten in één keer, bedoeld voor de gewoonte om recepten in een

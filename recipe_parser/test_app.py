@@ -23,9 +23,10 @@ def load_fixture(name: str) -> str:
 
 
 class FakeResponse:
-    def __init__(self, text="", status_code=200):
+    def __init__(self, text="", status_code=200, url=""):
         self.text = text
         self.status_code = status_code
+        self.url = url
 
     def raise_for_status(self):
         if self.status_code >= 400:
@@ -94,6 +95,21 @@ class IndexRouteTests(unittest.TestCase):
         # staan er wel.
         self.assertIn(b"Prei", resp.data)
         self.assertIn("Champignons".encode(), resp.data)
+
+    @patch("recipe_parser.requests.get")
+    def test_a_removed_recipe_says_so(self, mock_get):
+        # Voedingscentrum stuurt verwijderde recepten naar /nl/404.aspx door,
+        # maar met HTTP 200.
+        removed = FakeResponse(
+            text="<html><head><title>Pagina helaas niet gevonden</title></head>"
+                 "<body></body></html>"
+        )
+        removed.url = "https://www.voedingscentrum.nl/nl/404.aspx"
+        mock_get.return_value = removed
+
+        resp = self.client.post("/", data={"text": VOEDINGSCENTRUM})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("bestaat niet meer".encode(), resp.data)
 
     def test_add_without_a_selected_recipe_shows_error(self):
         resp = self.client.post("/", data={"action": "add"})

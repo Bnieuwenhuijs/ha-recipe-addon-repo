@@ -18,21 +18,29 @@ doorzetten naar een Home Assistant todo-lijst (bijv. Bring).
 
 ### Ondersteunde receptsites
 
-Getest met [voedingscentrum.nl](https://www.voedingscentrum.nl),
-[leukerecepten.nl](https://www.leukerecepten.nl) en
-[ah.nl/allerhande](https://www.ah.nl/allerhande).
+Er is geen lijst met toegestane sites: de ingrediënten komen uit de
+[schema.org](https://schema.org/Recipe)-gegevens die vrijwel elke receptsite
+meestuurt, als microdata of als JSON-LD. Daardoor werken ook sites die nooit
+apart zijn ingebouwd.
 
-De ingrediënten worden gelezen uit de [schema.org](https://schema.org/Recipe)
--gegevens die deze sites meesturen - als microdata (voedingscentrum) of als
-JSON-LD (leukerecepten, ah). Dat is een standaard die de meeste receptsites
-gebruiken, dus de kans is groot dat andere sites ook gewoon werken. Levert
-een pagina niets bruikbaars op, dan geeft de add-on een duidelijke melding
-in plaats van een halve lijst.
+Getoetst aan een WhatsApp-export met 224 receptlinks over 33 sites: **205
+daarvan (91%) leveren hun ingrediënten**, waaronder voedingscentrum.nl (ook
+`mobiel.`), ah.nl, leukerecepten.nl, jumbo.com, dekamarkt.nl, 24kitchen.nl,
+libelle-lekker.be, recipetineats.com, lassie.nl, en een reeks foodblogs.
 
-**Werkt niet:** de korte links van de deelknop in de Albert Heijn-app
-(`ah.nl/r/1196876`). Die zijn niet meer op te halen - ook een gewone browser
-krijgt "pagina niet gevonden". Open het recept in de browser en deel het
-adres uit de adresbalk (`ah.nl/allerhande/recept/...`), dat werkt wel.
+Twee soorten links worden eerst omgezet:
+
+- **Korte Albert Heijn-links** uit de deelknop van de app (`ah.nl/r/1196876`)
+  geven zelf een 404, maar hetzelfde nummer werkt als
+  `ah.nl/allerhande/recept/R-R1196876`. Dat gebeurt automatisch.
+- **Doorstuurlinks** zoals `share.google/...` worden gevolgd naar de site
+  waar ze heen wijzen.
+
+**Wat niet lukt**, en waarom: een Instagram-reel of een overzichtspagina
+("5x de lekkerste curry's") bevat geen los recept; een enkele site blokkeert
+alles wat geen browser is; en een blog dat het recept als lopende tekst
+schrijft heeft geen lijst om uit te lezen. Zulke links worden per stuk
+gemeld en houden de rest niet tegen.
 
 ### Webformulier (ingress)
 

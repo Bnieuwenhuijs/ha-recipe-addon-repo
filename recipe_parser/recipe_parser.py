@@ -30,7 +30,28 @@ from bring_catalog import CATALOG, SYNONYMS
 
 app = Flask(__name__)
 
-HEADERS = {"User-Agent": "Mozilla/5.0 (HomeAssistant recipe-parser)"}
+# Een gewone browser-User-Agent: een deel van de receptsites geeft een
+# onbekende client een 403 of een lege pagina.
+HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "nl-NL,nl;q=0.9,en;q=0.8",
+}
+
+# De deelknop van de Albert Heijn-app maakt links als ah.nl/r/1196876. Die
+# geven zelf een 404, maar hetzelfde nummer werkt wel als recept-URL, die
+# daarna doorstuurt naar de volledige pagina.
+AH_SHORT_RE = re.compile(r"^https?://(?:www\.)?ah\.nl/r/(\d+)/?$", re.IGNORECASE)
+
+
+def normalize_url(url: str) -> str:
+    """Herschrijf linkvormen die zelf niet op te halen zijn."""
+    match = AH_SHORT_RE.match(url.strip())
+    if match:
+        return f"https://www.ah.nl/allerhande/recept/R-R{match.group(1)}"
+    return url
 
 # Beschikbaar zodra de add-on draait met homeassistant_api: true in config.yaml.
 # Ontbreekt bij lokaal draaien buiten Home Assistant (bewust geen fallback -
@@ -370,31 +391,75 @@ def split_ingredient(text: str):
     return title, description
 
 
-def _ingredients_from_json_ld(soup):
+def _json_ld_blocks(soup):
     """
-    Haal recipeIngredient uit schema.org JSON-LD. Leukerecepten.nl en ah.nl
-    zetten hun recept zo op de pagina (en veel andere receptsites ook), soms
-    verstopt in een @graph of een lijst met meerdere blokken.
+    Alle JSON-LD-blokken als Python-gegevens. Het type-attribuut wordt los
+    vergeleken (sommige sites schrijven "application/ld+json; charset=utf-8"),
+    en strict=False laat losse regeleindes binnen teksten toe - zonder dat
+    laatste sneuvelt bijvoorbeeld savorysweets.nl op één afbreking.
     """
-    ingredients = []
-    for tag in soup.find_all("script", type="application/ld+json"):
+    blocks = []
+    for tag in soup.find_all(
+        "script", type=lambda value: value and "ld+json" in value.lower()
+    ):
+        raw = tag.string or tag.get_text() or ""
+        if not raw.strip():
+            continue
         try:
-            data = json.loads(tag.string or "")
+            blocks.append(json.loads(raw, strict=False))
         except (ValueError, TypeError):
-            continue  # niet elke site levert geldige JSON
+            continue  # niet elke site levert bruikbare JSON
+    return blocks
 
-        stack = [data]
+
+def _walk_json_ld(blocks, key):
+    """Zoek een sleutel in geneste JSON-LD (vaak verstopt in een @graph)."""
+    for block in blocks:
+        stack = [block]
         while stack:
             node = stack.pop()
             if isinstance(node, list):
                 stack.extend(node)
             elif isinstance(node, dict):
-                values = node.get("recipeIngredient")
-                if isinstance(values, list):
-                    ingredients.extend(
-                        str(v).strip() for v in values if str(v).strip()
-                    )
+                if key in node:
+                    yield node
                 stack.extend(node.values())
+
+
+def _as_ingredient_list(values):
+    if isinstance(values, list):
+        return [str(v).strip() for v in values if str(v).strip()]
+    if isinstance(values, str) and values.strip():
+        return [values.strip()]
+    return []
+
+
+def _is_recipe_node(node) -> bool:
+    types = node.get("@type", "")
+    if isinstance(types, list):
+        return any("recipe" in str(t).lower() for t in types)
+    return "recipe" in str(types).lower()
+
+
+def _ingredients_from_json_ld(soup):
+    """
+    Haal de ingrediënten uit schema.org JSON-LD. De meeste receptsites zetten
+    hun recept zo op de pagina.
+    """
+    blocks = _json_ld_blocks(soup)
+
+    ingredients = []
+    for node in _walk_json_ld(blocks, "recipeIngredient"):
+        ingredients.extend(_as_ingredient_list(node.get("recipeIngredient")))
+    if ingredients:
+        return ingredients
+
+    # Oudere schema.org-versie gebruikte "ingredients" (libelle-lekker.be doet
+    # dat nog). Dat woord is te algemeen om zomaar te vertrouwen, dus alleen
+    # binnen een node die zichzelf een Recipe noemt.
+    for node in _walk_json_ld(blocks, "ingredients"):
+        if _is_recipe_node(node):
+            ingredients.extend(_as_ingredient_list(node.get("ingredients")))
     return ingredients
 
 
@@ -415,25 +480,46 @@ def extract_ingredients(html: str):
     if ingredients:
         return _drop_equipment(ingredients)
 
-    # Fallback voor pagina's zonder itemprop-markering: zoek de kop
-    # "Ingrediënten" (h2/h3) en loop door alle volgende elementen in
-    # document-volgorde (dus ook geneste <ul>'s in kolommen) tot de
-    # volgende kop (bijv. "Bereiding").
+    # Laatste redmiddel voor pagina's zonder schema.org-gegevens: zoek de kop
+    # "Ingrediënten" en verzamel de lijstitems die erop volgen.
+    return _drop_equipment(_ingredients_after_heading(soup))
+
+
+HEADING_TAGS = ("h1", "h2", "h3", "h4", "h5", "h6")
+
+# Koppen die de ingrediëntenlijst onderverdelen in plaats van afsluiten:
+# "Voor 2 personen", "Voor de saus", "Ingrediënten deeg".
+SUBHEADING_RE = re.compile(r"^\s*(voor\b|ingredi)", re.IGNORECASE)
+
+# Lijstitems hier binnen zijn navigatie of "lees ook", geen ingrediënten.
+NON_CONTENT_PARENTS = ("nav", "aside", "footer", "header", "form")
+
+
+def _ingredients_after_heading(soup):
     heading = soup.find(
-        lambda tag: tag.name in ("h2", "h3")
+        lambda tag: tag.name in HEADING_TAGS
         and "ingredi" in tag.get_text(strip=True).lower()
     )
     if not heading:
         return []
 
+    ingredients = []
     for elem in heading.find_all_next():
-        if elem.name in ("h2", "h3"):
-            break
-        if elem.name == "li":
-            text = elem.get_text(strip=True)
-            if text:
-                ingredients.append(text)
-    return _drop_equipment(ingredients)
+        if elem.name in HEADING_TAGS:
+            # Voor het eerste ingrediënt kan er nog een tussenkop staan
+            # ("Voor 2 personen"); die sluit de lijst niet af.
+            if ingredients and not SUBHEADING_RE.match(elem.get_text(strip=True)):
+                break
+            continue
+        if elem.name != "li":
+            continue
+        if elem.find_parent(NON_CONTENT_PARENTS):
+            continue
+        text = elem.get_text(strip=True)
+        # Hele alinea's zijn geen ingrediënt maar bereidingstekst of een tip.
+        if text and len(text) <= 200:
+            ingredients.append(text)
+    return ingredients
 
 
 def _drop_equipment(ingredients):
@@ -472,22 +558,12 @@ def find_recipe_links(text: str):
 
 def extract_title(soup, fallback: str = "") -> str:
     """Naam van het recept, zodat je in het overzicht ziet wat je aanvinkt."""
-    for tag in soup.find_all("script", type="application/ld+json"):
-        try:
-            data = json.loads(tag.string or "")
-        except (ValueError, TypeError):
-            continue
-        stack = [data]
-        while stack:
-            node = stack.pop()
-            if isinstance(node, list):
-                stack.extend(node)
-            elif isinstance(node, dict):
-                if isinstance(node.get("recipeIngredient"), list):
-                    name = str(node.get("name") or "").strip()
-                    if name:
-                        return name
-                stack.extend(node.values())
+    blocks = _json_ld_blocks(soup)
+    for key in ("recipeIngredient", "ingredients"):
+        for node in _walk_json_ld(blocks, key):
+            name = node.get("name")
+            if isinstance(name, str) and name.strip():
+                return name.strip()
 
     for candidate in (soup.find("h1"), soup.find("title")):
         if candidate:
@@ -497,13 +573,28 @@ def extract_title(soup, fallback: str = "") -> str:
     return fallback
 
 
+# Voedingscentrum stuurt een verwijderd recept door naar /nl/404.aspx, maar
+# meldt gewoon HTTP 200. Dan is "recept bestaat niet meer" een duidelijker
+# antwoord dan "geen ingrediënten gevonden".
+MISSING_PAGE_RE = re.compile(r"/404|niet gevonden|not found", re.IGNORECASE)
+
+
+def _looks_like_a_missing_page(resp) -> bool:
+    if MISSING_PAGE_RE.search(resp.url or ""):
+        return True
+    title = re.search(r"<title[^>]*>(.*?)</title>", resp.text, re.S | re.I)
+    return bool(title and MISSING_PAGE_RE.search(title.group(1)))
+
+
 def fetch_recipe(link):
     """Haal één recept op. Fouten komen terug in het resultaat, niet als crash."""
     url = link["url"]
     result = {"url": url, "date": link.get("date", ""), "title": url,
               "items": [], "error": ""}
     try:
-        resp = requests.get(url, headers=HEADERS, timeout=15)
+        # Doorstuurlinks (share.google) volgt requests zelf; de korte
+        # AH-vorm moet eerst herschreven worden.
+        resp = requests.get(normalize_url(url), headers=HEADERS, timeout=20)
         resp.raise_for_status()
     except requests.RequestException as e:
         result["error"] = f"kon pagina niet ophalen ({e.__class__.__name__})"
@@ -513,7 +604,10 @@ def fetch_recipe(link):
     result["title"] = extract_title(soup, fallback=url)
     ingredients = extract_ingredients(resp.text)
     if not ingredients:
-        result["error"] = "geen ingrediënten gevonden op deze pagina"
+        result["error"] = (
+            "recept bestaat niet meer" if _looks_like_a_missing_page(resp)
+            else "geen ingrediënten gevonden op deze pagina"
+        )
         return result
 
     result["items"] = [split_ingredient(i) for i in ingredients]
