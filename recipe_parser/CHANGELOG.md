@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.9.0
+
+Nieuwe vormgeving, in de stijl van Bubble Card.
+
+- Alles is nu een capsule met veel ronding, geen randen en een rond icoon
+  links, met een vette titel en een kleine grijze regel eronder.
+- Een aangevinkt recept is een **groen gevulde** capsule, een uitgevinkt
+  blijft grijs, en een link die niet lukte is roodgetint. Je tikt ergens op
+  de rij om hem aan of uit te zetten - de hele capsule is het label, dus dat
+  werkt ook zonder JavaScript.
+- Knop **Alles aanvinken / uitvinken**, handig als je een maand aan berichten
+  plakt en er maar een paar wil koken. Het opschrift volgt de stand.
+- Per recept een **inklapbaar lijstje** met de ingrediënten, zodat je kunt
+  kijken wat erin zit voordat je toevoegt. Gebruikt `<details>`, dus ook dit
+  werkt zonder JavaScript.
+- **Donker thema** via `prefers-color-scheme`: staat je telefoon of Home
+  Assistant 's avonds donker, dan is het paneel geen lichtbak meer.
+- De iconen zijn inline SVG. Geen externe fonts of CDN, dus het paneel laadt
+  ook zonder internet en er lekt niets naar buiten.
+
 ## 1.8.0
 
 Recepten die als tekst geplakt worden, zonder link erbij.

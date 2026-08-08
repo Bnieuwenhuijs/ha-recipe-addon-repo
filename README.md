@@ -74,9 +74,15 @@ Het kopje mag `INGREDIENTS` of `Ingrediënten` heten; de lijst loopt tot
 `STEPS`, `Bereiding`, `NOTES` of een lege regel. Links en tekstrecepten mogen
 door elkaar in dezelfde plakbeurt staan.
 
-Alles wordt tegelijk opgehaald. Je krijgt een overzicht
-met de naam van elk recept, de datum uit het bericht en het aantal
-ingrediënten, en vinkt aan welke mee moeten. Pas daarna gaan ze via de Home
+Alles wordt tegelijk opgehaald. Je krijgt een overzicht met de naam van elk
+recept, de datum uit het bericht en het aantal ingrediënten. Aangevinkte
+recepten kleuren groen, een link die niet lukte is rood; tik op een rij om
+hem aan of uit te zetten, of gebruik **Alles aanvinken**. Per recept kun je
+uitklappen welke ingrediënten erin zitten voordat je toevoegt.
+
+De vormgeving volgt de stijl van
+[Bubble Card](https://github.com/Clooos/Bubble-Card) en gaat mee met een
+donker thema. Pas daarna gaan ze via de Home
 Assistant API (`todo.add_item`) naar de lijst - geen aparte `rest_command`
 of script nodig.
 
