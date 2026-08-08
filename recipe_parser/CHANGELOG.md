@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.5.0
+
+Naast voedingscentrum.nl werken nu ook **leukerecepten.nl** en **ah.nl**.
+
+- Die twee zetten hun recept niet in de HTML maar in een schema.org
+  JSON-LD-blok, dat nu ook gelezen wordt. Omdat dit een standaard is en geen
+  maatwerk per site, werken veel andere receptsites hoogstwaarschijnlijk ook.
+  Voedingscentrum blijft via zijn eigen microdata werken.
+- Eenheden uit die sites herkend: `gr`, `g`, `el`, `tl`, `blokje`, `zak`,
+  `snuf`, `teen`, `krop`, `bol`, `sneetje`, `stengel`, `cm`, `pot`.
+- Staat er niets herkenbaars in de naam, dan worden beschrijvende woorden
+  vooraan alsnog overgeslagen: "300 g biologische volkorenorzo" wordt
+  "Pasta" in plaats van de hele zin als titel. Catalogusnamen die er zelf
+  mee beginnen ("Zoete aardappelen", "Witte bonen") blijven heel.
+- Keukengerei dat leukerecepten.nl tussen de ingrediënten zet (staafmixer,
+  blender, oven) belandt niet meer op de boodschappenlijst.
+- Betere matches: orzo/fusilli/farfalle en andere pastavormen worden Pasta,
+  rijstnoedels worden Noedels (niet Rijst), biefstuk wordt Steak,
+  cottagecheese wordt Huttenkaas, maïzena wordt Zetmeel.
+- "peper en zout" blijft één regel in plaats van een item "Zout" met een
+  losse "peper en" in de omschrijving.
+- Fix: meervouden werkten maar één kant op, waardoor "2 biologische
+  limoenen" onder de titel "Limoen" toch nog "limoenen" herhaalde.
+
 ## 1.4.0
 
 - De omschrijving herhaalt de titel niet meer: "200 gram groenten" onder de

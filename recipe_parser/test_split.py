@@ -90,6 +90,38 @@ class SplitIngredientTests(unittest.TestCase):
         self.assertIn("150 gram", description)
         self.assertIn("rodekool", description)
 
+    def test_units_used_by_leukerecepten_and_ah(self):
+        # "gr", "g", "el", "tl", "blokje", "scheutje", "krop", "teen", "snuf"
+        self.assertSplit("300 gr couscous", "Couscous", "300 gr")
+        self.assertSplit("100 g rucola", "Rucola", "100 g")
+        self.assertSplit("3 el balsamico", "Balsamico", "3 el")
+        self.assertSplit("0.5 el honing", "Honing", "0.5 el")
+        self.assertSplit("1 scheutje olijfolie", "Olijfolie", "1 scheutje")
+        self.assertSplit("1 teen knoflook", "Knoflook", "1 teen")
+
+    def test_pasta_shapes_map_to_pasta(self):
+        self.assertSplit("300 gr fusilli pasta", "Pasta", "300 gr fusilli")
+        title, _ = split_ingredient("300 g biologische volkorenorzo")
+        self.assertEqual(title, "Pasta")
+
+    def test_rice_noodles_are_noodles_not_rice(self):
+        title, _ = split_ingredient("225 g rijstnoedels")
+        self.assertEqual(title, "Noedels")
+
+    def test_pepper_and_salt_stay_one_item(self):
+        self.assertSplit("1 snuf peper en zout", "Peper en zout", "1 snuf")
+        self.assertSplit("peper en zout", "Peper en zout", "")
+
+    def test_leading_qualifiers_are_moved_to_the_description(self):
+        self.assertSplit("2 biologische limoenen", "Limoen", "2 biologische")
+        self.assertSplit("2 el donkere basterdsuiker", "Basterdsuiker", "2 el donkere")
+
+    def test_catalog_names_starting_with_a_qualifier_still_match(self):
+        # "Zoete aardappelen" en "Witte bonen" mogen niet tot "Aardappelen"
+        # en "Bonen" worden afgekapt.
+        self.assertSplit("500 gram zoete aardappelen", "Zoete aardappelen", "500 gram")
+        self.assertSplit("1 blik witte bonen", "Witte bonen", "1 blik")
+
     def test_unknown_product_keeps_its_own_name(self):
         self.assertSplit("150 gram tempé", "Tempé", "150 gram")
         self.assertSplit("150 gram edamame (vers of diepvries, gekookt)",

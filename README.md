@@ -12,10 +12,22 @@ Home Assistant add-on repository met daarin één add-on: **Recipe Parser**.
 
 ## Recipe Parser
 
-Een kleine Flask-microservice die een receptpagina-URL (voornamelijk
-[voedingscentrum.nl](https://www.voedingscentrum.nl)) ophaalt, de
-ingrediëntenlijst uit de HTML haalt, en via een webformulier of REST
-endpoint kan doorzetten naar een Home Assistant todo-lijst (bijv. Bring).
+Een kleine Flask-microservice die een receptpagina-URL ophaalt, de
+ingrediëntenlijst eruit haalt, en via een webformulier of REST endpoint kan
+doorzetten naar een Home Assistant todo-lijst (bijv. Bring).
+
+### Ondersteunde receptsites
+
+Getest met [voedingscentrum.nl](https://www.voedingscentrum.nl),
+[leukerecepten.nl](https://www.leukerecepten.nl) en
+[ah.nl/allerhande](https://www.ah.nl/allerhande).
+
+De ingrediënten worden gelezen uit de [schema.org](https://schema.org/Recipe)
+-gegevens die deze sites meesturen - als microdata (voedingscentrum) of als
+JSON-LD (leukerecepten, ah). Dat is een standaard die de meeste receptsites
+gebruiken, dus de kans is groot dat andere sites ook gewoon werken. Levert
+een pagina niets bruikbaars op, dan geeft de add-on een duidelijke melding
+in plaats van een halve lijst.
 
 ### Webformulier (ingress)
 

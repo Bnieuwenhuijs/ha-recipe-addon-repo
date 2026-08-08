@@ -117,6 +117,7 @@ SYNONYMS = {
     "hüttenkäse": "Huttenkaas",
     "huttenkase": "Huttenkaas",
     "cottage cheese": "Huttenkaas",
+    "cottagecheese": "Huttenkaas",
     "oude kaas": "Kaas",
     "jonge kaas": "Kaas",
     "belegen kaas": "Kaas",
@@ -130,9 +131,20 @@ SYNONYMS = {
     "tagliatelle": "Pasta",
     "macaroni": "Pasta",
     "volkoren pasta": "Pasta",
+    "fusilli": "Pasta",
+    "farfalle": "Pasta",
+    "rigatoni": "Pasta",
+    "tagliatelli": "Pasta",
+    "orzo": "Pasta",
+    "volkorenorzo": "Pasta",
+    "schelpjespasta": "Pasta",
     "lasagnebladen": "Lasagna",
     "zilvervliesrijst": "Rijst",
     "basmatirijst": "Basmati rijst",
+    # Rijstnoedels zijn noedels, geen rijst - zonder deze regel wint "rijst".
+    "rijstnoedels": "Noedels",
+    "mihoen": "Noedels",
+    "vermicelli": "Noedels",
     # Voorraadkast
     "sojasaus": "Soja saus",
     "ketjap": "Soja saus",
@@ -162,4 +174,14 @@ SYNONYMS = {
     "gerookte zalm": "Zalm",
     "vegetarisch gehakt": "Gehakt",
     "vegetarische gehakt": "Gehakt",
+    "biefstuk": "Steak",
+    "edamamebonen": "Bonen",
+    # Overig
+    "maizena": "Zetmeel",
+    "maïzena": "Zetmeel",
+    # "peper en zout" is één boodschap; zonder deze regel wint "zout" en
+    # blijft er een losse "peper en" in de omschrijving staan.
+    "peper en zout": "Peper en zout",
+    "zout en peper": "Peper en zout",
+    "peper & zout": "Peper en zout",
 }

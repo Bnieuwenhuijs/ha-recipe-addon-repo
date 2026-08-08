@@ -65,5 +65,56 @@ class ExtractIngredientsTests(unittest.TestCase):
         self.assertEqual(extract_ingredients("<html><body>geen recept</body></html>"), [])
 
 
+class JsonLdSourcesTests(unittest.TestCase):
+    """
+    Leukerecepten.nl en ah.nl zetten hun recept niet in de HTML maar in een
+    schema.org JSON-LD-blok.
+    """
+
+    def test_leukerecepten(self):
+        ingredients = extract_ingredients(
+            load_fixture("leukerecepten_couscoussalade.html")
+        )
+        self.assertEqual(len(ingredients), 10)
+        self.assertIn("300 gr couscous", ingredients)
+        self.assertIn("1 bosje verse munt", ingredients)
+
+    def test_albert_heijn(self):
+        ingredients = extract_ingredients(load_fixture("ah_orzosalade.html"))
+        self.assertEqual(len(ingredients), 9)
+        self.assertIn("250 g burrata", ingredients)
+        self.assertIn("0.5 el honing", ingredients)
+
+    def test_json_ld_inside_a_graph_is_found(self):
+        html = """
+        <html><head><script type="application/ld+json">
+        {"@context":"https://schema.org","@graph":[
+          {"@type":"WebPage"},
+          {"@type":"Recipe","recipeIngredient":["2 uien","500 g gehakt"]}
+        ]}
+        </script></head><body></body></html>
+        """
+        self.assertEqual(extract_ingredients(html), ["2 uien", "500 g gehakt"])
+
+    def test_broken_json_ld_does_not_crash(self):
+        html = """
+        <html><head>
+        <script type="application/ld+json">{ dit is geen json ]</script>
+        <script type="application/ld+json">
+        {"@type":"Recipe","recipeIngredient":["1 komkommer"]}
+        </script>
+        </head><body></body></html>
+        """
+        self.assertEqual(extract_ingredients(html), ["1 komkommer"])
+
+    def test_kitchen_equipment_is_not_a_shopping_item(self):
+        html = """
+        <html><head><script type="application/ld+json">
+        {"@type":"Recipe","recipeIngredient":["400 gr pompoen","Staafmixer"]}
+        </script></head><body></body></html>
+        """
+        self.assertEqual(extract_ingredients(html), ["400 gr pompoen"])
+
+
 if __name__ == "__main__":
     unittest.main()

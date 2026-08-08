@@ -11,6 +11,7 @@ Response:
     of bij een fout: { "error": "..." }
 """
 
+import json
 import os
 import re
 import threading
@@ -106,15 +107,41 @@ def add_ingredients_to_todo(entity_id: str, items):
 
 FRACTIONS = "½¼¾⅓⅔⅛⅜⅝⅞"
 UNITS = (
-    "gram|gr|g|kilogram|kilo|kg|milliliter|ml|liter|l|"
+    "gram|gr|g|kilogram|kilo|kg|milliliter|ml|liter|l|cm|"
     "eetlepels|eetlepel|el|theelepels|theelepel|tl|"
-    "takjes|takje|blaadjes|blaadje|teentjes|teentje|"
-    "snufjes|snufje|mespuntjes|mespuntje|mespunt|scheutjes|scheutje|"
-    "blikjes|blikje|blikken|blik|pakjes|pakje|pakken|pak|"
-    "bosjes|bosje|bossen|bos|stuks|stuk|plakjes|plakje|plakken|plak|"
-    "bolletjes|bolletje|handjes|handje|handvol|zakjes|zakje|"
-    "potjes|potje|flesjes|flesje|kopjes|kopje|kop"
+    "takjes|takje|takken|tak|blaadjes|blaadje|"
+    "teentjes|teentje|tenen|teen|stengels|stengel|"
+    "snufjes|snufje|snuf|mespuntjes|mespuntje|mespunt|"
+    "scheutjes|scheutje|scheuten|scheut|"
+    "blikjes|blikje|blikken|blik|blokjes|blokje|"
+    "pakjes|pakje|pakken|pak|zakjes|zakje|zakken|zak|"
+    "bosjes|bosje|bossen|bos|bollen|bol|kroppen|krop|"
+    "stuks|stuk|plakjes|plakje|plakken|plak|sneetjes|sneetje|"
+    "bolletjes|bolletje|handjes|handje|handvol|"
+    "potjes|potje|potten|pot|flesjes|flesje|kopjes|kopje|kop"
 )
+
+# Woorden die iets zeggen over het product, maar niet het product zelf zijn.
+# Alleen gebruikt als de hele naam nergens op matcht: "biologische volkorenorzo"
+# levert dan de titel "Volkorenorzo" op in plaats van de hele zin.
+QUALIFIER_WORDS = {
+    "biologisch", "biologische", "bio", "verse", "vers", "diepvries",
+    "gerookte", "gerookt", "gedroogde", "gedroogd", "gezouten", "ongezouten",
+    "geroosterde", "geroosterd", "gepelde", "gepeld", "rauwe", "rauw",
+    "milde", "mild", "pittige", "pittig", "donkere", "donker", "lichte",
+    "magere", "mager", "halfvolle", "volle", "kleine", "grote", "fijne",
+    "grove", "eetrijpe", "griekse", "italiaanse", "verspakket", "extra",
+    "mini", "jonge", "oude", "zoete", "verpakte", "voorgesneden",
+}
+
+# Keukengerei dat sommige sites tussen de ingrediënten zet (leukerecepten.nl
+# noemt bijvoorbeeld een staafmixer). Dat hoort niet op een boodschappenlijst.
+KITCHEN_EQUIPMENT = {
+    "staafmixer", "blender", "keukenmachine", "foodprocessor", "hakmolen",
+    "oven", "koekenpan", "hapjespan", "wok", "bakvorm", "springvorm",
+    "ovenschaal", "garde", "spatel", "pollepel", "snijplank", "mandoline",
+    "vergiet", "rasp", "deegroller", "airfryer", "barbecue", "bbq",
+}
 
 # Voorloop met hoeveelheid en/of maat: "200 gram", "1 teentje", "½", "2 eetlepels".
 QUANTITY_RE = re.compile(
@@ -227,14 +254,15 @@ def _title_forms(title: str):
     for candidate in candidates:
         if not candidate:
             continue
+        # Zowel korter als langer: "limoen" moet ook "limoenen" afvangen, en
+        # "uien" ook "ui". Niet of/of, want dan valt één kant weg.
         forms.add(candidate)
+        forms.add(candidate + "en")
+        forms.add(candidate + "s")
         if candidate.endswith("en") and len(candidate) > 3:
             forms.add(candidate[:-2])
         elif candidate.endswith("s") and len(candidate) > 3:
             forms.add(candidate[:-1])
-        else:
-            forms.add(candidate + "en")
-            forms.add(candidate + "s")
     return forms
 
 
@@ -273,6 +301,20 @@ def _without_title_words(text: str, title: str, term: str) -> str:
     return " ".join(kept)
 
 
+def _without_leading_qualifiers(name: str) -> str:
+    """Haal beschrijvende woorden vooraan weg: 'biologische volkorenorzo'."""
+    words = name.split()
+    while len(words) > 1 and _normalize(words[0]).strip("().,;:") in QUALIFIER_WORDS:
+        words = words[1:]
+    return " ".join(words)
+
+
+def is_kitchen_equipment(text: str) -> bool:
+    """Keukengerei hoort niet op de boodschappenlijst."""
+    bare = re.sub(r"[^a-z0-9 ]", "", _normalize(text)).strip()
+    return bare in KITCHEN_EQUIPMENT
+
+
 def split_ingredient(text: str):
     """
     Splits "400 gram prei" in ("Prei", "400 gram"): de artikelnaam als titel
@@ -290,7 +332,18 @@ def split_ingredient(text: str):
     tail = name_part[qualifier.start():].strip() if qualifier else ""
 
     matched, term = match_bring_item(head)
-    title = matched or (head[:1].upper() + head[1:])
+    core = head
+    if not matched:
+        # Niets herkend: probeer het nog eens zonder de bijvoeglijke woorden
+        # vooraan. Dat gebeurt pas nu, zodat catalogusnamen die er zelf mee
+        # beginnen ("Zoete aardappelen", "Witte bonen") ongemoeid blijven.
+        core = _without_leading_qualifiers(head)
+        if core != head:
+            matched, term = match_bring_item(core)
+
+    # De titel komt van de kale naam, maar de omschrijving houdt de
+    # weggelaten woorden ("biologische", "verse") gewoon vast.
+    title = matched or (core[:1].upper() + core[1:])
 
     if _normalize(title) == _normalize(head):
         parts = [quantity, tail]
@@ -305,6 +358,34 @@ def split_ingredient(text: str):
     return title, description
 
 
+def _ingredients_from_json_ld(soup):
+    """
+    Haal recipeIngredient uit schema.org JSON-LD. Leukerecepten.nl en ah.nl
+    zetten hun recept zo op de pagina (en veel andere receptsites ook), soms
+    verstopt in een @graph of een lijst met meerdere blokken.
+    """
+    ingredients = []
+    for tag in soup.find_all("script", type="application/ld+json"):
+        try:
+            data = json.loads(tag.string or "")
+        except (ValueError, TypeError):
+            continue  # niet elke site levert geldige JSON
+
+        stack = [data]
+        while stack:
+            node = stack.pop()
+            if isinstance(node, list):
+                stack.extend(node)
+            elif isinstance(node, dict):
+                values = node.get("recipeIngredient")
+                if isinstance(values, list):
+                    ingredients.extend(
+                        str(v).strip() for v in values if str(v).strip()
+                    )
+                stack.extend(node.values())
+    return ingredients
+
+
 def extract_ingredients(html: str):
     soup = BeautifulSoup(html, "html.parser")
 
@@ -315,7 +396,12 @@ def extract_ingredients(html: str):
     items = soup.find_all(attrs={"itemprop": "recipeIngredient"})
     ingredients = [text for i in items if (text := i.get_text(strip=True))]
     if ingredients:
-        return ingredients
+        return _drop_equipment(ingredients)
+
+    # Dezelfde schema.org-gegevens, maar als JSON-LD in een <script>.
+    ingredients = _ingredients_from_json_ld(soup)
+    if ingredients:
+        return _drop_equipment(ingredients)
 
     # Fallback voor pagina's zonder itemprop-markering: zoek de kop
     # "Ingrediënten" (h2/h3) en loop door alle volgende elementen in
@@ -335,7 +421,11 @@ def extract_ingredients(html: str):
             text = elem.get_text(strip=True)
             if text:
                 ingredients.append(text)
-    return ingredients
+    return _drop_equipment(ingredients)
+
+
+def _drop_equipment(ingredients):
+    return [i for i in ingredients if not is_kitchen_equipment(i)]
 
 
 @app.route("/", methods=["GET", "POST"])
