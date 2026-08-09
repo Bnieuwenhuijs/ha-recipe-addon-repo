@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.11.0
+
+De voorraadkast en de synoniemenlijst zijn flink uitgebreid, op basis van wat
+er daadwerkelijk in de kast staat (vier bestellingen bij De Kruidenbaron).
+
+- **96 voorraadartikelen** in plaats van 44. Erbij: kruidnagel, sumak,
+  karwijzaad, venkelzaad, korianderzaad, uienpoeder, knoflookpoeder,
+  gemberpoeder, nootmuskaat, foelie, piment, steranijs, saffraan, maanzaad,
+  nigellazaad, kokosrasp, kerrie, ras el hanout, tandoori, vijfkruidenpoeder,
+  Italiaanse en Provençaalse kruiden, nasi kruiden, sambal, harissa, tahin,
+  vanille, cacao, thee, koffie en kraanwater.
+- **Gedroogde kruiden staan nu gewoon in de kast.** Basilicum, peterselie,
+  dille, bieslook, koriander en munt gelden als voorraad, want die staan er
+  gedroogd. Vraagt een recept om het verse product, dan gaat het alsnog op de
+  lijst - en dat wordt nu ook herkend zonder het woord "verse", aan maten die
+  alleen bij vers horen: "1 bosje", "3 takjes", "een handje", "2 blaadjes".
+- **Poeder is niet hetzelfde als het verse product.** Knoflookpoeder,
+  uienpoeder, gemberpoeder, venkelzaad en korianderpoeder werden eerder
+  aangezien voor knoflook, ui, gember, venkel en een bosje koriander - en
+  verdwenen daarmee naar de verkeerde groep. Die hebben nu hun eigen naam.
+- **249 synoniemen** in plaats van 130. Naast de specerijen ook gewone
+  boodschappen: sjalotten en zilveruitjes worden Uien, winterpeen en bospeen
+  worden Wortelen, kidney-, borlotti- en cannellinibonen worden Bonen,
+  ijsbergsla en little gem worden Sla, kastanjechampignons worden
+  Champignons, slagroom en kookroom worden Room, spekjes en pancetta worden
+  Spek, geitenkaas en halloumi worden Kaas, zalmfilet wordt Zalm.
+
+Op de vijf uitgeschreven recepten scheelt dat 20 van de 51 artikelen: die
+gaan niet meer naar Bring tenzij je ze aantikt.
+
 ## 1.10.0
 
 Artikelen die je vrijwel altijd in huis hebt gaan niet meer vanzelf mee.

@@ -100,8 +100,14 @@ boodschappenlijst kort, maar zie je nog wel dat een recept om sojasaus vraagt
 - handig als de fles bijna leeg is. Aantikken en hij gaat alsnog mee.
 
 Verse kruiden zijn een uitzondering: *5 g verse basilicum* hoort gewoon op de
-lijst, *1 tsp gedroogde oregano* niet. En *vers gemalen zwarte peper* telt als
-voorraad, want daar gaat "vers" over de molen.
+lijst, *1 tsp gedroogde oregano* niet. Dat wordt ook herkend zonder het woord
+"verse", aan maten die alleen bij vers horen (*1 bosje*, *3 takjes*, *een
+handje*). En *vers gemalen zwarte peper* telt als voorraad, want daar gaat
+"vers" over de molen.
+
+Poeder is niet hetzelfde als het verse product: *knoflookpoeder*,
+*uienpoeder*, *gemberpoeder* en *korianderpoeder* staan in de kast, terwijl
+*2 teentjes knoflook* en *1 bosje koriander* gewoon op de lijst komen.
 
 De lijst staat in [`recipe_parser/bring_catalog.py`](recipe_parser/bring_catalog.py)
 onder `PANTRY` en `DRIED_ONLY_PANTRY`.

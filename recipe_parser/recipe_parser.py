@@ -26,7 +26,7 @@ from flask import Flask, request, jsonify, render_template
 import requests
 from bs4 import BeautifulSoup
 
-from bring_catalog import CATALOG, SYNONYMS, PANTRY, DRIED_ONLY_PANTRY
+from bring_catalog import CATALOG, SYNONYMS, PANTRY
 
 app = Flask(__name__)
 
@@ -810,26 +810,31 @@ def merge_items(item_lists):
     return [(title, " + ".join(parts)) for title, parts in merged.items()]
 
 
-# "verse basilicum" wil je kopen, maar "vers gemalen peper" zegt alleen iets
-# over de pepermolen - dat is nog steeds de peper uit je eigen kastje.
-FRESH_RE = re.compile(r"\bvers(e|se)?\b(?!\s+gemalen)", re.IGNORECASE)
-DRIED_RE = re.compile(r"\bgedroogd(e)?\b", re.IGNORECASE)
+# Aanwijzingen dat een recept om het verse product vraagt en niet om het
+# potje uit de kast: het woord "verse", of een maat die alleen bij vers hoort
+# ("1 bosje", "3 takjes"). "vers gemalen peper" telt niet mee - dat zegt iets
+# over de molen, niet over wat je moet halen.
+FRESH_RE = re.compile(
+    r"\bvers(e|se)?\b(?!\s+gemalen)"
+    r"|\bbos(je|jes|sen)?\b"
+    r"|\btakje?s?\b"
+    r"|\bblaadje?s?\b"
+    r"|\bhandje?s?\b"
+    r"|\bplantje\b"
+    r"|\bkropje?s?\b",
+    re.IGNORECASE,
+)
 
 
 def is_pantry_item(title: str, description: str = "") -> bool:
     """
-    Heb je dit vrijwel zeker al in huis? Zout en kaneel wel, maar een bosje
-    verse koriander niet - dat woordje "verse" is het verschil tussen iets
-    uit je kastje en iets uit het schap.
+    Heb je dit vrijwel zeker al in huis? Zout, kaneel en gedroogde oregano
+    wel, maar een bosje verse koriander niet - dat verschil zit in de
+    omschrijving.
     """
-    fresh = bool(FRESH_RE.search(description))
-    if title in DRIED_ONLY_PANTRY:
-        # Alleen voorraad als het recept expliciet gedroogd zegt. Vraagt een
-        # ander recept om hetzelfde kruid vers, dan wint kopen.
-        return bool(DRIED_RE.search(description)) and not fresh
     if title not in PANTRY:
         return False
-    return not fresh
+    return not FRESH_RE.search(description)
 
 
 def split_pantry(items):
