@@ -228,13 +228,21 @@ def _normalize(text: str) -> str:
 
 
 def _build_lookup():
-    """Zoektabel van genormaliseerde term -> canonieke Bring-naam."""
+    """
+    Zoektabel van genormaliseerde term -> canonieke Bring-naam, plus de set
+    termen die we zelf hebben afgeleid. Die laatste vertrouwen we minder: ze
+    mogen alleen als heel woord matchen. "kers", afgeleid van "Kersen", zat
+    anders ook in "Kerstmaker glitterspray".
+    """
     table = {}
+    derived = set()
 
-    def add(term, canonical):
+    def add(term, canonical, is_derived=False):
         term = _normalize(term).strip()
-        if len(term) >= 3:
-            table.setdefault(term, canonical)
+        if len(term) >= 3 and term not in table:
+            table[term] = canonical
+            if is_derived:
+                derived.add(term)
 
     for name in CATALOG:
         for variant in name.split("/"):
@@ -245,21 +253,23 @@ def _build_lookup():
             norm = _normalize(variant)
             if len(norm) >= 5:
                 if norm.endswith("en"):
-                    add(norm[:-2], name)
+                    add(norm[:-2], name, is_derived=True)
                 elif norm.endswith("s"):
-                    add(norm[:-1], name)
+                    add(norm[:-1], name, is_derived=True)
                 else:
-                    add(norm + "en", name)
-                    add(norm + "s", name)
+                    add(norm + "en", name, is_derived=True)
+                    add(norm + "s", name, is_derived=True)
 
-    # Synoniemen winnen van afgeleide varianten.
+    # Synoniemen winnen van afgeleide varianten, en gelden als betrouwbaar.
     for alias, canonical in SYNONYMS.items():
-        table[_normalize(alias).strip()] = canonical
+        term = _normalize(alias).strip()
+        table[term] = canonical
+        derived.discard(term)
 
-    return table
+    return table, derived
 
 
-LOOKUP = _build_lookup()
+LOOKUP, DERIVED_TERMS = _build_lookup()
 
 
 def _build_matchers():
@@ -271,9 +281,10 @@ def _build_matchers():
     matchers = []
     for term, canonical in LOOKUP.items():
         # Term moet aan het begin van een woord staan. Korte termen ('sla',
-        # 'kip') moeten een heel woord zijn, anders matchen ze in 'slagroom'.
+        # 'kip') en zelf afgeleide vormen ('kers') moeten een heel woord zijn,
+        # anders matchen ze in 'slagroom' of 'Kerstmaker'.
         pattern = r"(?<![a-z0-9])" + re.escape(term)
-        if len(term) < 4:
+        if len(term) < 4 or term in DERIVED_TERMS:
             pattern += r"(?![a-z0-9])"
         matchers.append((re.compile(pattern), term, canonical))
     return matchers
@@ -436,6 +447,22 @@ COMBINED_PRODUCT_RE = re.compile(
 )
 
 
+def _is_the_product_itself(part: str) -> bool:
+    """
+    Gaat deze helft van "A en B" over het artikel zelf, of komt het artikel
+    achteraan in een groter product? "vers gemalen zwarte peper" is peper,
+    maar "zuivelspread knoflook" is een bakje spread en geen knoflook.
+    """
+    canonical, term = match_bring_item(part)
+    if not canonical:
+        return False
+    normalized = _normalize(part)
+    before = normalized[: normalized.find(term)].split()
+    return all(
+        word.strip("().,;:") in QUALIFIER_WORDS for word in before
+    )
+
+
 def expand_ingredient(text: str):
     """
     "1 pinch zout en peper" zijn twee boodschappen. Splitsen gebeurt alleen
@@ -461,7 +488,7 @@ def expand_ingredient(text: str):
     parts = re.split(r"\s+en\s+", head)
     if len(parts) != 2 or not all(p.strip() for p in parts):
         return [text]
-    if not all(match_bring_item(p.strip())[0] for p in parts):
+    if not all(_is_the_product_itself(p.strip()) for p in parts):
         return [text]
 
     return [
@@ -509,6 +536,15 @@ def split_ingredient(text: str):
         core = _without_qualifier_words(head)
         if core != head:
             matched, term = match_bring_item(core)
+    if not matched:
+        # Sommige sites verliezen de spatie na de maat: "120 grrijst". Alleen
+        # accepteren als er daarna wél een artikel uit komt, want "1 grote ui"
+        # begint ook met "gr".
+        unglued = GLUED_UNIT_RE.sub("", core, count=1).strip()
+        if unglued and unglued != core:
+            found, found_term = match_bring_item(unglued)
+            if found:
+                matched, term, core = found, found_term, unglued
 
     # De titel komt van de kale naam, maar de omschrijving houdt de
     # weggelaten woorden ("biologische", "verse") gewoon vast.
@@ -758,6 +794,9 @@ SERVINGS_RE = re.compile(
 
 # Een regel die met een bolletje, cijfer of breuk begint is een ingrediënt.
 LOOKS_LIKE_INGREDIENT_RE = re.compile(rf"^\s*(?:[-*•‣▪●⁃·]|\d|[{FRACTIONS}])")
+
+# Maat die zonder spatie aan de naam vastzit: "grrijst", "mlkokosmelk".
+GLUED_UNIT_RE = re.compile(rf"^(?:{UNITS})(?=[a-z])", re.IGNORECASE)
 
 
 def _split_messages(text: str):

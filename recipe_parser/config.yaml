@@ -1,5 +1,5 @@
 name: "Recipe Parser"
-version: "1.13.0"
+version: "1.13.1"
 slug: "recipe_parser"
 description: "Haalt ingrediënten op van receptpagina's (voedingscentrum.nl, ah.nl, leukerecepten.nl en tientallen andere sites) en zet ze in een Home Assistant todo-lijst (bijv. Bring)."
 url: "https://www.voedingscentrum.nl"

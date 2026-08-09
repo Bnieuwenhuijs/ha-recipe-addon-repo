@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.13.1
+
+Naar aanleiding van het nalopen van alle 2286 ingrediëntregels uit de export.
+
+- **Maat plakt aan de naam.** Een paar sites verliezen de spatie:
+  "120 grrijst", "200 mlkokosmelk", "140gramkristalsuiker". De maat wordt nu
+  losgeknipt, maar alleen als er daarna een artikel uit komt dat we kennen -
+  "1 grote ui" begint immers ook met "gr".
+- **"Kerstmaker glitterspray" werd Kersen.** Vormen die we zelf afleiden
+  ("kers" uit "Kersen") mogen nu alleen als heel woord matchen. Echte
+  catalogusnamen en synoniemen mogen nog wel in een samenstelling zitten,
+  zodat "knoflookteentjes" en "bloemkoolroosjes" blijven werken.
+- **"200 g zuivelspread knoflook en kruiden" werd in tweeën geknipt.** Bij
+  het splitsen op "en" moet het artikel nu vooraan in die helft staan, met
+  hooguit bijvoeglijke woorden ervoor. "vers gemalen zwarte peper en zout"
+  splitst dus nog gewoon.
+- **"Mexicaanse bonenkruiden" werd Bonen**, en is nu Bonenkruid.
+- Engelstalige recepten worden herkend: garlic, onion, ginger, chicken,
+  soy sauce, mushrooms en dergelijke wijzen nu naar de Nederlandse naam.
+- Kleinere correcties: currypasta, boemboe, kristalsuiker, melkchocolade,
+  biscuits, en de veelgemaakte typefout "bouillion".
+
+Wat bewust **niet** verandert, na overleg: een specifiek product houdt de
+algemene Bring-naam (geitenkaas blijft Kaas, borlottibonen blijven Bonen),
+water blijft in de kastgroep staan, en varianten als basterdsuiker en
+jasmijnrijst blijven aparte regels.
+
 ## 1.13.0
 
 Alle 224 links en alle uitgeschreven recepten uit de chat-export zijn er

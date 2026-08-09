@@ -135,6 +135,15 @@ class SplitIngredientTests(unittest.TestCase):
         title, _ = split_ingredient("1 pak Go-Tan bami")
         self.assertEqual(title, "Noedels")
 
+    def test_english_recipes(self):
+        # Er staat een Engelstalige site tussen de gedeelde recepten.
+        self.assertSplit("3 garlic cloves, minced", "Knoflook",
+                         "3 garlic cloves, minced")
+        title, _ = split_ingredient("2 tbsp soy sauce")
+        self.assertEqual(title, "Soja saus")
+        title, _ = split_ingredient("8 dried shiitake mushrooms")
+        self.assertEqual(title, "Champignons")
+
     def test_wine_vinegar_is_vinegar_not_wine(self):
         self.assertSplit("2 el witte wijn azijn", "Azijn", "2 el witte wijn")
         self.assertSplit("1 el witte wijnazijn", "Azijn", "1 el witte wijnazijn")
@@ -170,7 +179,27 @@ class SplitIngredientTests(unittest.TestCase):
             [("Zout", "1 pinch, naar smaak"), ("Peper", "1 pinch, naar smaak")],
         )
 
+    def test_a_unit_stuck_to_the_name(self):
+        # Sommige sites verliezen de spatie na de maat.
+        self.assertSplit("120 grrijst", "Rijst", "120 grrijst")
+        self.assertSplit("200 mlkokosmelk", "Kokosmelk", "200 mlkokosmelk")
+        self.assertSplit("140gramkristalsuiker", "Suiker", "140 gramkristalsuiker")
+        # Maar "1 grote ui" begint ook met "gr" en moet gewoon Uien blijven.
+        self.assertSplit("1 grote ui", "Uien", "1 grote")
+        self.assertSplit("1 grapefruit", "Grapefruit", "1")
+
+    def test_a_derived_plural_only_matches_a_whole_word(self):
+        # "kers" komt van "Kersen", maar zat ook in "Kerstmaker".
+        self.assertSplit("500 g kersen", "Kersen", "500 g")
+        title, _ = split_ingredient("1 flesje Kerstmaker glitterspray goud")
+        self.assertNotEqual(title, "Kersen")
+
     def test_an_en_that_is_not_two_products_is_left_alone(self):
+        # "zuivelspread knoflook en kruiden" is één bakje: de knoflook staat
+        # niet vooraan, dus dit is niet twee boodschappen.
+        self.assertEqual(
+            len(ingredients_to_items(["200 g zuivelspread knoflook en kruiden"])), 1
+        )
         # Alleen splitsen als beide helften een bekend artikel zijn.
         self.assertEqual(len(ingredients_to_items(["1 blik mais en bonen mix"])), 1)
         title, description = split_ingredient(
