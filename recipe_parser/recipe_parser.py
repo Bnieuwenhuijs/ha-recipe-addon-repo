@@ -619,11 +619,22 @@ INGREDIENTS_HEADING_RE = re.compile(
     r"^\s*(?:ingredi[eë]nt(?:en|s)?|ingredients)\s*:?\s*$", re.IGNORECASE
 )
 NEXT_SECTION_RE = re.compile(
-    r"^\s*(?:steps?|stappen|bereiding(?:swijze)?|instructions?|method|"
-    r"notes?|notities|opmerkingen|tips?|voorbereiding)\s*:?\s*$",
+    r"^\s*(?:steps?|stappen|bereiding(?:swijze)?|toebereiding|instructions?|"
+    r"method|notes?|notities|opmerkingen|tips?|voorbereiding|informatie|"
+    r"werkwijze|zo\s+maak\s+je\s+het)\s*:?\s*$",
     re.IGNORECASE,
 )
 BULLET_RE = re.compile(r"^\s*[-*•‣▪●⁃·]\s*")
+
+# "Op basis van 4 personen", "Voor 2 personen": een portiegrootte, geen boodschap.
+SERVINGS_RE = re.compile(
+    r"^\s*(?:op basis van\s+)?\d*\s*(?:personen|porties|stuks?)\s*$"
+    r"|^\s*op basis van\b",
+    re.IGNORECASE,
+)
+
+# Een regel die met een bolletje, cijfer of breuk begint is een ingrediënt.
+LOOKS_LIKE_INGREDIENT_RE = re.compile(rf"^\s*(?:[-*•‣▪●⁃·]|\d|[{FRACTIONS}])")
 
 
 def _split_messages(text: str):
@@ -651,18 +662,51 @@ def _ingredients_from_lines(lines):
     if start is None:
         return []
 
+    block = lines[start:]
     ingredients = []
-    for line in lines[start:]:
-        stripped = line.strip()
+    after_blank = False
+    index = 0
+
+    while index < len(block):
+        stripped = block[index].strip()
+        index += 1
+
         if not stripped:
-            # Een lege regel sluit de lijst af, maar niet vóór het begin.
-            if ingredients:
-                break
+            after_blank = True
             continue
         if NEXT_SECTION_RE.match(stripped):
             break
+        if SERVINGS_RE.match(stripped):
+            continue
+
+        if after_blank and ingredients:
+            # Een lege regel kan het einde van de lijst zijn, maar ook een
+            # tussenkopje zoals "Sausmix" of "Extra benodigdheden". Daarom
+            # kijken we wat erop volgt in plaats van meteen te stoppen.
+            if _is_group_heading(stripped, block, index):
+                continue
+            if not LOOKS_LIKE_INGREDIENT_RE.match(stripped):
+                break
+
+        after_blank = False
         ingredients.append(BULLET_RE.sub("", stripped).strip())
+
     return [i for i in ingredients if i]
+
+
+def _is_group_heading(line: str, block, index: int) -> bool:
+    """
+    Een kopje binnen de ingrediëntenlijst: zelf zonder hoeveelheid, met daarna
+    weer gewone ingrediënten. "Sausmix" hoort niet op de boodschappenlijst,
+    maar de vijf regels eronder wel.
+    """
+    if any(char.isdigit() for char in line):
+        return False
+    for following in block[index:]:
+        if not following.strip():
+            continue
+        return bool(LOOKS_LIKE_INGREDIENT_RE.match(following))
+    return False
 
 
 def find_text_recipes(text: str):

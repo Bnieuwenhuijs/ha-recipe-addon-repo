@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.12.1
+
+- Fix: bij een recept dat je van een site plakt verdween een hele groep
+  ingrediënten. Een lege regel sloot de lijst af, dus alles onder een
+  tussenkopje als "Sausmix" viel weg - zonder melding. Nu wordt gekeken wat
+  er ná de lege regel volgt: komen er weer ingrediënten, dan loopt de lijst
+  door. Losse tekst achter de lijst sluit hem nog steeds af.
+- Tussenkopjes ("Sausmix", "Extra benodigdheden") en portieregels
+  ("Op basis van 4 personen") belanden niet meer op de boodschappenlijst.
+- Fix: maiszetmeel werd Maïs en rijstwijn werd Rijst. Nu Zetmeel en
+  Rijstwijn; mirin en sake zijn ook toegevoegd.
+
 ## 1.12.0
 
 De voorraadkast en de boodschappenlijst zien er nu hetzelfde uit.

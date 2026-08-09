@@ -89,6 +89,30 @@ class FindTextRecipesTests(unittest.TestCase):
         )
         self.assertEqual(recipes[0]["ingredients"], ["1 ui", "500 ml bouillon"])
 
+    def test_a_group_inside_the_list_does_not_end_it(self):
+        # Van een site geplakt: de lijst heeft tussenkopjes en lege regels.
+        # Alles onder "Sausmix" hoort er gewoon bij.
+        recipes = find_text_recipes(
+            "Kippenvleugels\n\nIngrediënten\nOp basis van 4 personen\n"
+            "20 kippenvleugels\n1 el olie\n\nSausmix\n\n"
+            "1 el lichte sojasaus\n1½ el suiker\n\n"
+            "Extra benodigdheden\n\nAirfryer\n\n"
+            "Informatie\nPrak de tofu in een kom.\n"
+        )
+        self.assertEqual(recipes[0]["ingredients"], [
+            "20 kippenvleugels",
+            "1 el olie",
+            "1 el lichte sojasaus",
+            "1½ el suiker",
+        ])
+
+    def test_loose_text_after_the_list_still_ends_it(self):
+        recipes = find_text_recipes(
+            "Curry\n\nINGREDIENTS\n- 1 ui\n- 400 g kikkererwten\n\n"
+            "Lekker met rijst erbij en een frisse salade\n"
+        )
+        self.assertEqual(recipes[0]["ingredients"], ["1 ui", "400 g kikkererwten"])
+
     def test_text_without_an_ingredients_heading_is_not_a_recipe(self):
         self.assertEqual(find_text_recipes("Zullen we vanavond pizza halen?"), [])
 

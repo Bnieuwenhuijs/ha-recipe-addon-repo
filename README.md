@@ -110,7 +110,7 @@ Poeder is niet hetzelfde als het verse product: *knoflookpoeder*,
 *2 teentjes knoflook* en *1 bosje koriander* gewoon op de lijst komen.
 
 De lijst staat in [`recipe_parser/bring_catalog.py`](recipe_parser/bring_catalog.py)
-onder `PANTRY` en `DRIED_ONLY_PANTRY`.
+onder `PANTRY`.
 
 Elk ingrediënt wordt gesplitst in een artikelnaam (de titel) en de
 hoeveelheid (de omschrijving), dus "400 gram prei" wordt een taak **Prei**

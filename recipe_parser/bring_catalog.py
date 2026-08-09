@@ -20,7 +20,7 @@ PANTRY = {
     "Olie", "Olijfolie", "Azijn", "Balsamico Azijn", "Rijstazijn",
     "Soja saus", "Ketchup", "Mayonaise", "Mosterd", "Pikante Saus",
     "BBQ Saus", "Honing", "Ahornstroop", "Vissaus", "Sambal", "Harissa",
-    "Tahin", "Worcestershiresaus",
+    "Tahin", "Worcestershiresaus", "Rijstwijn", "Mirin", "Sake",
     # Bakken en drogerij
     "Bloem", "Suiker", "Poedersuiker", "Vanillesuiker", "Basterdsuiker",
     "Rietsuiker", "Bakpoeder", "Gist", "Zetmeel", "Paneermeel", "Griesmeel",
@@ -377,6 +377,11 @@ SYNONYMS = {
     "tahini": "Tahin",
     "worcestershiresaus": "Worcestershiresaus",
     "rijstazijn": "Rijstazijn",
+    # Rijstwijn is geen rijst; zonder deze regels wint het kortere woord.
+    "rijstwijn": "Rijstwijn",
+    "shaoxing": "Rijstwijn",
+    "mirin": "Mirin",
+    "sake": "Sake",
     "witte wijnazijn": "Azijn",
     "appelazijn": "Azijn",
     "balsamicoazijn": "Balsamico Azijn",
@@ -388,6 +393,10 @@ SYNONYMS = {
     # Overig
     "maizena": "Zetmeel",
     "maïzena": "Zetmeel",
+    # Zonder deze regels wint "mais" en belandt het zetmeel bij de maiskorrels.
+    "maiszetmeel": "Zetmeel",
+    "maïszetmeel": "Zetmeel",
+    "aardappelzetmeel": "Zetmeel",
     # "peper en zout" is één boodschap; zonder deze regel wint "zout" en
     # blijft er een losse "peper en" in de omschrijving staan.
     "peper en zout": "Peper en zout",
