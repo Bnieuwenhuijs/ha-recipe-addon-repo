@@ -1,5 +1,48 @@
 # Changelog
 
+## 1.13.0
+
+Alle 224 links en alle uitgeschreven recepten uit de chat-export zijn er
+doorheen gehaald: 2309 ingrediëntregels. Wat daaruit kwam:
+
+**De drie gemelde fouten**
+
+- "peper en zout" wordt nu **twee** boodschappen in plaats van één artikel
+  "Peper en zout". Splitsen gebeurt alleen als beide helften een bekend
+  artikel zijn, dus "witte kool en wortel" of "mais en bonen mix" blijven
+  heel.
+- "witte wijn azijn" en "(wijn)azijn" werden **Witte** of **Witte wijn**.
+  Nu Azijn. Een haakje middenin een woord knipt de naam niet meer af -
+  net als bij "(olijf)olie" en "(winter)wortel".
+- "Go-Tan whole wheat noodles" wordt **Noedels**. Merknamen (Go-Tan,
+  Conimex, Kikkoman, Knorr, Maggi, Heinz, Calvé, Honig, Unox) tellen niet
+  meer mee voor de titel.
+
+**Gevonden tijdens het nalopen**
+
+- **Een andere WhatsApp-export werd niet herkend.** Deze schrijft de tijd
+  vóór de datum (`[3:23 PM, 8/9/2026]`) en daar was niet op gerekend.
+  Gevolg: berichten werden niet gesplitst, waardoor uitgeschreven recepten
+  aan elkaar plakten en alleen de eerste overbleef. In jouw export scheelde
+  dat vier recepten. Ook `8-9-2026 15:23 - Naam:` werkt nu.
+- Hoeveelheden met een **bereik** ("2-3 eetlepels", "2 à 3 blokjes",
+  "2 tot 3 teentjes") en met een **schatting** ("Ongeveer 150 gram",
+  "ca. 200 g", "ruim 500 ml") werden half gelezen; de rest belandde in de
+  titel.
+- Regels die **geen boodschap** zijn worden overgeslagen: kopjes als "Voor
+  erbij:", voedingswaarden ("500 - 750 kcal") en bakvormen met een maat
+  ("Quichevorm 26 cm"). Staat er iets ná de dubbele punt, dan blijft dat
+  wel staan: "Om te serveren: bonito flakes" wordt "bonito flakes".
+- Een kleur vóór "of" is niet het product: "1 gele of rode paprika" wordt
+  **Paprika** in plaats van **Gele**. Kleuren die bij de naam horen blijven
+  heel, dus "witte bonen", "rode biet" en "rode peper" veranderen niet.
+- Nieuwe synoniemen: roerbakgroente wordt Groenten, jackfruit, quinoa,
+  bulgur, misopasta wordt Miso, en noodles/ramen/udon/soba/bami worden
+  Noedels.
+
+Van de 2309 regels blijft er één titel over die er raar uitziet en dat
+terecht is: "3-kleurenquinoa" heet gewoon zo.
+
 ## 1.12.1
 
 - Fix: bij een recept dat je van een site plakt verdween een hele groep

@@ -8,7 +8,12 @@ belanden. Draai met:
 
 import unittest
 
-from recipe_parser import find_text_recipes, collect_recipes, split_ingredient
+from recipe_parser import (
+    collect_recipes,
+    find_text_recipes,
+    ingredients_to_items,
+    split_ingredient,
+)
 
 CURRY = """[19/07, 16:44] Bart Nieuwenhuijs: Noord-Indiase bonen-groentecurry met hing (asafoetida)
 
@@ -69,6 +74,20 @@ class FindTextRecipesTests(unittest.TestCase):
         joined = " ".join(ingredients)
         self.assertNotIn("Verhit", joined)
         self.assertNotIn("Hing is sterk", joined)
+
+    def test_several_recipes_in_the_american_export_format(self):
+        # Deze export schrijft tijd vóór datum; zonder herkenning van dat
+        # formaat plakten twee recepten aan elkaar en verdween de tweede.
+        recipes = find_text_recipes(
+            "[3:37 PM, 8/9/2026] Bart: Sumaghiyya\n\n"
+            "INGREDIENTS\n* 5 tbsp sumak\n* 1 ui\n\nSTEPS\n1. Koken.\n"
+            "[3:41 PM, 8/9/2026] Bart: Insalata di farro\n\n"
+            "INGREDIENTS\n* 300 g farro\n* 1 komkommer\n\nSTEPS\n1. Koken.\n"
+        )
+        self.assertEqual(len(recipes), 2)
+        self.assertEqual(recipes[0]["title"], "Sumaghiyya")
+        self.assertEqual(recipes[1]["title"], "Insalata di farro")
+        self.assertEqual(recipes[1]["date"], "8/9")
 
     def test_several_pasted_recipes_at_once(self):
         recipes = find_text_recipes(CURRY + FASOLAKIA)
@@ -141,9 +160,10 @@ class PastedRecipeIngredientTests(unittest.TestCase):
         self.assertEqual(
             split_ingredient("250 g Griekse yoghurt"), ("Yoghurt", "250 g Griekse")
         )
-        title, description = split_ingredient("1 pinch vers gemalen zwarte peper en zout")
-        self.assertEqual(title, "Peper en zout")
-        self.assertTrue(description.startswith("1 pinch"))
+        self.assertEqual(
+            ingredients_to_items(["1 pinch vers gemalen zwarte peper en zout"]),
+            [("Zwarte peper", "1 pinch vers gemalen"), ("Zout", "1 pinch")],
+        )
 
     def test_portion_words_are_not_repeated(self):
         self.assertEqual(

@@ -20,13 +20,13 @@ PANTRY = {
     "Olie", "Olijfolie", "Azijn", "Balsamico Azijn", "Rijstazijn",
     "Soja saus", "Ketchup", "Mayonaise", "Mosterd", "Pikante Saus",
     "BBQ Saus", "Honing", "Ahornstroop", "Vissaus", "Sambal", "Harissa",
-    "Tahin", "Worcestershiresaus", "Rijstwijn", "Mirin", "Sake",
+    "Tahin", "Worcestershiresaus", "Rijstwijn", "Mirin", "Sake", "Miso",
     # Bakken en drogerij
     "Bloem", "Suiker", "Poedersuiker", "Vanillesuiker", "Basterdsuiker",
     "Rietsuiker", "Bakpoeder", "Gist", "Zetmeel", "Paneermeel", "Griesmeel",
     "Vanille", "Cacao", "Kokosrasp", "Speculaaskruiden",
     # Zout en peper
-    "Zout", "Peper", "Peper en zout", "Witte peper", "Zwarte peper",
+    "Zout", "Peper", "Witte peper", "Zwarte peper",
     "Peperkorrels", "Cayennepeper", "Pfeffer",
     # Gemalen specerijen en zaden
     "Kaneel", "Kurkuma", "Paprikapoeder", "Kruidnagel", "Nootmuskaat",
@@ -166,6 +166,17 @@ SYNONYMS = {
     "boerenkool": "Kool",
     "rodekool": "Kool",
     "kastanjechampignons": "Champignons",
+    "roerbakgroente": "Groenten",
+    "roerbakgroenten": "Groenten",
+    "wokgroente": "Groenten",
+    "wokgroenten": "Groenten",
+    "soepgroente": "Groenten",
+    "jackfruit": "Jackfruit",
+    "quinoa": "Quinoa",
+    "bulgur": "Bulgur",
+    "couscous": "Couscous",
+    "misopasta": "Miso",
+    "miso": "Miso",
     "portobello": "Champignons",
     "doperwten": "Erwten",
     "tuinbonen": "Bonen",
@@ -242,6 +253,12 @@ SYNONYMS = {
     "mihoen": "Noedels",
     "vermicelli": "Noedels",
     "tarwenoedels": "Noedels",
+    "noodles": "Noedels",
+    "noedels": "Noedels",
+    "ramen": "Noedels",
+    "udon": "Noedels",
+    "soba": "Noedels",
+    "bami": "Noedels",
     "eiernoedels": "Noedels",
     "mie": "Noedels",
     # Zonder deze regels wint het kortere "mosterd" resp. "kokos" en belandt
@@ -383,6 +400,14 @@ SYNONYMS = {
     "mirin": "Mirin",
     "sake": "Sake",
     "witte wijnazijn": "Azijn",
+    "witte wijn azijn": "Azijn",
+    "wittewijnazijn": "Azijn",
+    "rodewijnazijn": "Azijn",
+    # Voedingscentrum schrijft "(wijn)azijn", net als "(olijf)olie".
+    "(wijn)azijn": "Azijn",
+    "rode wijnazijn": "Azijn",
+    "rode wijn azijn": "Azijn",
+    "wijnazijn": "Azijn",
     "appelazijn": "Azijn",
     "balsamicoazijn": "Balsamico Azijn",
     "balsamico azijn": "Balsamico Azijn",
@@ -397,9 +422,10 @@ SYNONYMS = {
     "maiszetmeel": "Zetmeel",
     "maïszetmeel": "Zetmeel",
     "aardappelzetmeel": "Zetmeel",
-    # "peper en zout" is één boodschap; zonder deze regel wint "zout" en
-    # blijft er een losse "peper en" in de omschrijving staan.
-    "peper en zout": "Peper en zout",
-    "zout en peper": "Peper en zout",
-    "peper & zout": "Peper en zout",
+    # "peper en zout" wordt door expand_ingredient() in twee boodschappen
+    # gesplitst, dus die woorden moeten los herkenbaar zijn.
+    "peper": "Peper",
+    "zout": "Zout",
+    "witte peper": "Witte peper",
+    "zwarte peper": "Zwarte peper",
 }

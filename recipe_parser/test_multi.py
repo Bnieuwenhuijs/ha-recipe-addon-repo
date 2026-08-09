@@ -63,6 +63,18 @@ class FindRecipeLinksTests(unittest.TestCase):
     def test_text_without_links(self):
         self.assertEqual(find_recipe_links("wat eten we vandaag?"), [])
 
+    def test_other_whatsapp_timestamp_formats(self):
+        # Het formaat verschilt per telefoon en taalinstelling.
+        varianten = {
+            "[05/07, 13:43] Lieke: kijk": "05/07",
+            "[3:23 PM, 8/9/2026] Bart: kijk": "8/9",
+            "[8/9/2026, 3:23 PM] Bart: kijk": "8/9",
+            "8-9-2026 15:23 - Bart: kijk": "8-9",
+        }
+        for regel, datum in varianten.items():
+            links = find_recipe_links(f"{regel} https://site.nl/recept")
+            self.assertEqual(links[0]["date"], datum, regel)
+
 
 class MergeItemsTests(unittest.TestCase):
     def test_same_product_from_several_recipes_becomes_one_line(self):

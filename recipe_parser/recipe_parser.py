@@ -169,6 +169,13 @@ QUALIFIER_WORDS = {
     "grove", "eetrijpe", "griekse", "italiaanse", "verspakket", "extra",
     "mini", "jonge", "oude", "zoete", "verpakte", "voorgesneden",
     "dunne", "dikke", "gemalen", "geraspte", "gehakte", "gesnipperde",
+    # Kleuren. Alleen gebruikt als de naam nergens op matcht, dus "rode ui"
+    # en "witte bonen" blijven gewoon heel.
+    "rode", "rood", "gele", "geel", "groene", "groen", "witte", "wit",
+    "zwarte", "zwart", "bruine", "bruin", "paarse", "oranje", "blauwe",
+    # Merknamen zeggen niets over wát je moet kopen.
+    "go-tan", "gotan", "conimex", "kikkoman", "knorr", "maggi", "heinz",
+    "calve", "calvé", "honig", "unox", "hak", "bonduelle",
 }
 
 # Keukengerei dat sommige sites tussen de ingrediënten zet (leukerecepten.nl
@@ -178,6 +185,9 @@ KITCHEN_EQUIPMENT = {
     "oven", "koekenpan", "hapjespan", "wok", "bakvorm", "springvorm",
     "ovenschaal", "garde", "spatel", "pollepel", "snijplank", "mandoline",
     "vergiet", "rasp", "deegroller", "airfryer", "barbecue", "bbq",
+    "quichevorm", "taartvorm", "cakevorm", "tulbandvorm", "muffinvorm",
+    "bakplaat", "steelpan", "braadpan", "sauspan", "stoommandje",
+    "maatbeker", "mengkom", "zeef", "dunschiller", "kaasschaaf",
 }
 
 # Voorloop met hoeveelheid en/of maat: "200 gram", "1 teentje", "½",
@@ -189,15 +199,24 @@ AMOUNT = (
     rf"|\d+(?:[.,]\d+)?"         # 400  of  4.9
     rf"|[{FRACTIONS}]"           # ½
 )
+# "ongeveer 150 gram", "ca. 2 el": woorden die vóór de hoeveelheid staan.
+APPROX = r"(?:ongeveer|ong\.?|circa|ca\.?|ruim|krap|plm\.?|±|~)"
+# "2-3 eetlepels", "2 à 3 blokjes": een bereik telt als één hoeveelheid.
+RANGE = rf"(?:\s*(?:-|–|—|tot|à|a)\s*(?:{AMOUNT}))?"
 QUANTITY_RE = re.compile(
-    rf"^\s*(?:(?:{AMOUNT})\s*)?(?:(?:{UNITS})\b\s*)?",
+    rf"^\s*(?:{APPROX}\s*)?(?:(?:{AMOUNT}){RANGE}\s*)?(?:(?:{UNITS})\b\s*)?",
     re.IGNORECASE,
 )
 
 # Alles hierna is een toelichting op het artikel, niet de artikelnaam zelf:
 # "sojasaus met minder zout", "rauwkost, zoals rodekool", "kaas (geraspt)".
 QUALIFIER_RE = re.compile(
-    r"\s*(?:[,;(]|\bmet\b|\bzonder\b|\bof\b|\bzoals\b|\buit\b|\bnaar smaak\b)",
+    # Een haakje sluit de naam alleen af als er een echte opmerking in staat.
+    # In "(wijn)azijn" en "(winter)wortel" hoort het haakje bij het woord, te
+    # herkennen aan een letter direct achter het sluithaakje.
+    r"\s*(?:[,;]|\((?![^()]*\)\S)"
+    r"|\bmet\b|\bzonder\b|\bof\b|\bzoals\b|\buit\b|\bnaar smaak\b"
+    r"|\bin (?:blik|pot|zak|glas|voordeelverpakking)\b)",
     re.IGNORECASE,
 )
 
@@ -373,6 +392,15 @@ def _is_portion_of(word: str, forms) -> bool:
     return False
 
 
+def _only_qualifiers(name: str) -> bool:
+    """Staat er alleen een bijvoeglijk naamwoord, zoals de "gele" in
+    "gele of rode paprika"? Dan is dit niet het product."""
+    words = name.split()
+    return bool(words) and all(
+        _normalize(word).strip("().,;:") in QUALIFIER_WORDS for word in words
+    )
+
+
 def _without_qualifier_words(name: str) -> str:
     """
     Haal beschrijvende woorden aan de randen weg: 'biologische volkorenorzo'
@@ -392,9 +420,63 @@ def _without_qualifier_words(name: str) -> str:
 
 
 def is_kitchen_equipment(text: str) -> bool:
-    """Keukengerei hoort niet op de boodschappenlijst."""
-    bare = re.sub(r"[^a-z0-9 ]", "", _normalize(text)).strip()
-    return bare in KITCHEN_EQUIPMENT
+    """
+    Keukengerei hoort niet op de boodschappenlijst. Ook met een maat erachter,
+    zoals "Springvorm van ca 22 - 24 cm" of "Quichevorm 26 cm".
+    """
+    words = re.sub(r"[^a-z0-9 ]", " ", _normalize(text)).split()
+    if not words:
+        return False
+    return " ".join(words) in KITCHEN_EQUIPMENT or words[0] in KITCHEN_EQUIPMENT
+
+
+# Woorden die verraden dat "A en B" samen één product is.
+COMBINED_PRODUCT_RE = re.compile(
+    r"\b(?:mix|melange|mengsel|salade|schotel|pakket|combi)\b", re.IGNORECASE
+)
+
+
+def expand_ingredient(text: str):
+    """
+    "1 pinch zout en peper" zijn twee boodschappen. Splitsen gebeurt alleen
+    als beide helften een artikel zijn dat we kennen, zodat "witte kool en
+    wortel" of "olie en azijn om te sprenkelen" niet uit elkaar getrokken
+    worden op een willekeurig "en".
+    """
+    text = " ".join(text.split())
+    prefix = QUANTITY_RE.match(text).group()
+    quantity = prefix.strip()
+    rest = text[len(prefix):].strip()
+    if not rest:
+        return [text]
+
+    qualifier = QUALIFIER_RE.search(rest, pos=1)
+    head = rest[: qualifier.start()].strip() if qualifier else rest
+    tail = rest[qualifier.start():].strip() if qualifier else ""
+
+    # "mais en bonen mix" is één blik, geen twee boodschappen.
+    if COMBINED_PRODUCT_RE.search(head):
+        return [text]
+
+    parts = re.split(r"\s+en\s+", head)
+    if len(parts) != 2 or not all(p.strip() for p in parts):
+        return [text]
+    if not all(match_bring_item(p.strip())[0] for p in parts):
+        return [text]
+
+    return [
+        " ".join(bit for bit in (quantity, part.strip(), tail) if bit)
+        for part in parts
+    ]
+
+
+def ingredients_to_items(ingredients):
+    """Van ruwe ingrediëntregels naar (titel, omschrijving)-paren."""
+    items = []
+    for line in ingredients:
+        for part in expand_ingredient(line):
+            items.append(split_ingredient(part))
+    return items
 
 
 def split_ingredient(text: str):
@@ -413,9 +495,9 @@ def split_ingredient(text: str):
     head = name_part[: qualifier.start()].strip() if qualifier else name_part
     tail = name_part[qualifier.start():].strip() if qualifier else ""
 
-    if head.endswith("-"):
-        # "zonnebloem- of arachideolie": het product staat pas na het streepje,
-        # dus hier valt niets af te splitsen.
+    if head.endswith("-") or _only_qualifiers(head):
+        # "zonnebloem- of arachideolie" en "gele of rode paprika": het product
+        # staat pas na het splitspunt, dus hier valt niets af te splitsen.
         head, tail = name_part, ""
 
     matched, term = match_bring_item(head)
@@ -576,17 +658,52 @@ def _ingredients_after_heading(soup):
     return ingredients
 
 
+# Een regel die op een dubbele punt eindigt is een kopje ("Voor erbij:"),
+# geen ingrediënt. Staat er wél iets achter, dan is dat het ingrediënt
+# ("Om te serveren: bonito flakes").
+HEADING_LINE_RE = re.compile(r":\s*$")
+LABEL_PREFIX_RE = re.compile(r"^[^:]{2,30}:\s*(?=\S)")
+
+# Voedingswaarden staan bij sommige sites tussen de ingrediënten.
+NUTRITION_RE = re.compile(r"\b(?:kcal|kj|calorie)", re.IGNORECASE)
+
+
 def _drop_equipment(ingredients):
-    return [i for i in ingredients if not is_kitchen_equipment(i)]
+    """Haal eruit wat geen boodschap is: gerei, kopjes en voedingswaarden."""
+    cleaned = []
+    for line in ingredients:
+        line = line.strip()
+        if not line or HEADING_LINE_RE.search(line) or NUTRITION_RE.search(line):
+            continue
+        line = LABEL_PREFIX_RE.sub("", line).strip()
+        if not line or is_kitchen_equipment(line):
+            continue
+        cleaned.append(line)
+    return cleaned
 
 
 # Links uit geplakte tekst. Sluit afsluitende leestekens uit, want in
 # "kijk hier: https://site.nl/recept." hoort de punt niet bij de link.
 URL_RE = re.compile(r"https?://[^\s<>\"']+")
 
-# WhatsApp zet voor elk bericht "[05/07, 13:43] Naam: ". De link staat soms op
-# een volgende regel, dus onthouden we de laatst geziene datum.
-WHATSAPP_LINE_RE = re.compile(r"^\[(\d{1,2}[/-]\d{1,2})[^\]]*\]")
+# WhatsApp zet voor elk bericht een kopregel met tijdstempel en naam. Het
+# formaat verschilt per telefoon en taalinstelling: "[05/07, 13:43] Naam:",
+# "[3:23 PM, 8/9/2026] Naam:" en zonder haakjes "8-9-2026 15:23 - Naam:".
+# Daarom herkennen we de kopregel breed en vissen we de datum er daarna uit.
+WHATSAPP_LINE_RE = re.compile(
+    r"^\[([^\]]{4,40})\]"
+    r"|^(\d{1,2}[/-]\d{1,2}[/-]\d{2,4},?\s+\d{1,2}:\d{2}(?:\s*[ap]\.?m\.?)?)\s+-\s",
+    re.IGNORECASE,
+)
+
+# De datum binnen zo'n tijdstempel: "05/07", "8/9/2026", "8-9-2026".
+DATE_IN_STAMP_RE = re.compile(r"\b(\d{1,2}[/-]\d{1,2})(?:[/-]\d{2,4})?\b")
+
+
+def _stamp_date(stamp: str) -> str:
+    """De datum uit een WhatsApp-tijdstempel; leeg als er geen in staat."""
+    match = DATE_IN_STAMP_RE.search(stamp or "")
+    return match.group(1) if match else ""
 
 
 def find_recipe_links(text: str):
@@ -601,7 +718,7 @@ def find_recipe_links(text: str):
     for line in text.splitlines():
         stamp = WHATSAPP_LINE_RE.match(line.strip())
         if stamp:
-            date = stamp.group(1)
+            date = _stamp_date(stamp.group(1) or stamp.group(2))
         for url in URL_RE.findall(line):
             url = url.rstrip(".,;:!?)")
             if url not in seen:
@@ -610,8 +727,14 @@ def find_recipe_links(text: str):
     return links
 
 
-# Een bericht in een WhatsApp-export: "[19/07, 16:44] Naam: eerste regel".
-WHATSAPP_MESSAGE_RE = re.compile(r"^\[(\d{1,2}[/-]\d{1,2})[^\]]*\]\s*[^:]{1,60}?:\s?(.*)$")
+# Een bericht in een WhatsApp-export, in dezelfde formaten als hierboven:
+# "[19/07, 16:44] Naam: eerste regel" of "8-9-2026 15:23 - Naam: eerste regel".
+WHATSAPP_MESSAGE_RE = re.compile(
+    r"^\[([^\]]{4,40})\]\s*[^:]{1,60}?:\s?(.*)$"
+    r"|^(\d{1,2}[/-]\d{1,2}[/-]\d{2,4},?\s+\d{1,2}:\d{2}(?:\s*[ap]\.?m\.?)?)"
+    r"\s+-\s*[^:]{1,60}?:\s?(.*)$",
+    re.IGNORECASE,
+)
 
 # Recepten die als tekst geplakt worden (bijv. gemaakt met Claude) hebben een
 # kopje boven de ingrediënten en daarna een kopje voor de bereiding.
@@ -643,7 +766,9 @@ def _split_messages(text: str):
     for line in text.splitlines():
         match = WHATSAPP_MESSAGE_RE.match(line)
         if match:
-            messages.append({"date": match.group(1), "lines": [match.group(2)]})
+            stamp = match.group(1) or match.group(3)
+            first = match.group(2) if match.group(1) else match.group(4)
+            messages.append({"date": _stamp_date(stamp), "lines": [first or ""]})
         elif messages:
             messages[-1]["lines"].append(line)
         else:
@@ -783,7 +908,7 @@ def fetch_recipe(link):
         )
         return result
 
-    result["items"] = [split_ingredient(i) for i in ingredients]
+    result["items"] = ingredients_to_items(ingredients)
     return result
 
 
@@ -811,7 +936,7 @@ def collect_recipes(text: str):
             "url": "",
             "date": recipe["date"],
             "title": recipe["title"],
-            "items": [split_ingredient(i) for i in recipe["ingredients"]],
+            "items": ingredients_to_items(recipe["ingredients"]),
             "error": "",
         })
     return recipes
@@ -830,7 +955,7 @@ def recipes_for_values(text: str, values):
                 "url": "",
                 "date": recipe["date"],
                 "title": recipe["title"],
-                "items": [split_ingredient(i) for i in recipe["ingredients"]],
+                "items": ingredients_to_items(recipe["ingredients"]),
                 "error": "",
             })
     return chosen
@@ -993,7 +1118,7 @@ def parse_recipe():
             # de bijbehorende hoeveelheid - handig voor todo.add_item.
             "items": [
                 {"title": title, "description": description}
-                for title, description in (split_ingredient(i) for i in ingredients)
+                for title, description in ingredients_to_items(ingredients)
             ],
             "source_url": url,
         }

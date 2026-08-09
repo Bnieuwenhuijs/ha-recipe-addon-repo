@@ -224,6 +224,19 @@ class JsonLdSourcesTests(unittest.TestCase):
         )
         self.assertEqual(extract_ingredients(html), [])
 
+    def test_lines_that_are_not_ingredients_are_dropped(self):
+        # Gevonden in de echte export: kopjes, voedingswaarden en bakvormen
+        # stonden tussen de ingrediënten.
+        html = (
+            '<html><head><script type="application/ld+json">'
+            '{"@type":"Recipe","recipeIngredient":['
+            '"Voor de okonomiyaki:","Om te serveren: bonito flakes",'
+            '"Quichevorm 26 cm","Springvorm van ca 22 - 24 cm",'
+            '"500 - 750 kcal","200 g bloem"]}'
+            "</script></head><body></body></html>"
+        )
+        self.assertEqual(extract_ingredients(html), ["bonito flakes", "200 g bloem"])
+
     def test_kitchen_equipment_is_not_a_shopping_item(self):
         html = """
         <html><head><script type="application/ld+json">

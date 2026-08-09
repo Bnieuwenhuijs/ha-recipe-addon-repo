@@ -8,7 +8,7 @@ Draai met:
 
 import unittest
 
-from recipe_parser import split_ingredient
+from recipe_parser import ingredients_to_items, split_ingredient
 
 
 class SplitIngredientTests(unittest.TestCase):
@@ -82,6 +82,28 @@ class SplitIngredientTests(unittest.TestCase):
         title, _ = split_ingredient("½ (groente)bouillontablet met minder zout")
         self.assertEqual(title, "Bouillon")
 
+    def test_a_bracket_inside_a_word_does_not_cut_off_the_name(self):
+        # "(wijn)azijn" is één woord; "(geraspt)" is een opmerking.
+        self.assertSplit("2 eetlepel witte (wijn)azijn", "Azijn",
+                         "2 eetlepel witte (wijn)azijn")
+        self.assertSplit("120 gram (winter)wortel", "Wortelen",
+                         "120 gram (winter)wortel")
+        title, description = split_ingredient("20 gram oude kaas 30+ (geraspt)")
+        self.assertEqual(title, "Kaas")
+        self.assertIn("(geraspt)", description)
+
+    def test_a_colour_before_or_is_not_the_product(self):
+        title, _ = split_ingredient("1 gele of rode paprika, in kleine blokjes")
+        self.assertEqual(title, "Paprika")
+        title, _ = split_ingredient("1 rode of gele ui")
+        self.assertEqual(title, "Uien")
+
+    def test_colours_that_belong_to_the_product_stay(self):
+        self.assertSplit("1 blik witte bonen", "Witte bonen", "1 blik")
+        self.assertSplit("1 rode biet", "Rode biet", "1")
+        title, _ = split_ingredient("1 rode peper")
+        self.assertEqual(title, "Chillipeper")
+
     def test_long_description_keeps_all_detail(self):
         title, description = split_ingredient(
             "150 gram rauwkost, zoals rodekool, witte kool en wortel (julienne of geraspt)"
@@ -89,6 +111,35 @@ class SplitIngredientTests(unittest.TestCase):
         self.assertEqual(title, "Rauwkost")
         self.assertIn("150 gram", description)
         self.assertIn("rodekool", description)
+
+    def test_a_range_counts_as_one_amount(self):
+        self.assertSplit("2-3 eetlepels misopasta", "Miso", "2-3 eetlepels")
+        self.assertSplit("2 tot 3 teentjes knoflook", "Knoflook", "2 tot 3 teentjes")
+        title, description = split_ingredient("2 à 3 blokjes tofu")
+        self.assertEqual(title, "Tofu")
+        self.assertEqual(description, "2 à 3 blokjes")
+
+    def test_an_approximation_before_the_amount(self):
+        self.assertSplit("Ongeveer 150 gram quinoa", "Quinoa", "Ongeveer 150 gram")
+        self.assertSplit("ca. 200 g bloem", "Bloem", "ca. 200 g")
+        self.assertSplit("ruim 500 ml water", "Water", "ruim 500 ml")
+
+    def test_a_plain_amount_is_not_read_as_a_range(self):
+        # De "a" van "appels" mag geen bereik beginnen.
+        self.assertSplit("2 appels", "Appels", "2")
+        self.assertSplit("3 tomaten", "Tomaten", "3")
+
+    def test_brand_names_do_not_become_the_title(self):
+        self.assertSplit("200 g Go-Tan whole wheat noodles", "Noedels",
+                         "200 g Go-Tan whole wheat noodles")
+        title, _ = split_ingredient("1 pak Go-Tan bami")
+        self.assertEqual(title, "Noedels")
+
+    def test_wine_vinegar_is_vinegar_not_wine(self):
+        self.assertSplit("2 el witte wijn azijn", "Azijn", "2 el witte wijn")
+        self.assertSplit("1 el witte wijnazijn", "Azijn", "1 el witte wijnazijn")
+        # Wijn zelf blijft wijn.
+        self.assertSplit("100 ml witte wijn", "Witte wijn", "100 ml")
 
     def test_units_used_by_leukerecepten_and_ah(self):
         # "gr", "g", "el", "tl", "blokje", "scheutje", "krop", "teen", "snuf"
@@ -108,9 +159,24 @@ class SplitIngredientTests(unittest.TestCase):
         title, _ = split_ingredient("225 g rijstnoedels")
         self.assertEqual(title, "Noedels")
 
-    def test_pepper_and_salt_stay_one_item(self):
-        self.assertSplit("1 snuf peper en zout", "Peper en zout", "1 snuf")
-        self.assertSplit("peper en zout", "Peper en zout", "")
+    def test_pepper_and_salt_become_two_items(self):
+        # Twee producten, dus twee regels - allebei voorraad overigens.
+        self.assertEqual(
+            ingredients_to_items(["1 snuf peper en zout"]),
+            [("Peper", "1 snuf"), ("Zout", "1 snuf")],
+        )
+        self.assertEqual(
+            ingredients_to_items(["1 pinch zout en peper, naar smaak"]),
+            [("Zout", "1 pinch, naar smaak"), ("Peper", "1 pinch, naar smaak")],
+        )
+
+    def test_an_en_that_is_not_two_products_is_left_alone(self):
+        # Alleen splitsen als beide helften een bekend artikel zijn.
+        self.assertEqual(len(ingredients_to_items(["1 blik mais en bonen mix"])), 1)
+        title, description = split_ingredient(
+            "150 gram rauwkost, zoals rodekool, witte kool en wortel"
+        )
+        self.assertEqual(title, "Rauwkost")
 
     def test_leading_qualifiers_are_moved_to_the_description(self):
         self.assertSplit("2 biologische limoenen", "Limoen", "2 biologische")

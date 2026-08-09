@@ -49,9 +49,9 @@ class PowderVersusFreshTests(unittest.TestCase):
 
 class PantryTests(unittest.TestCase):
     def test_staples_are_recognised(self):
-        for title in ("Zout", "Peper en zout", "Kaneel", "Bloem", "Soja saus",
-                      "Olie", "Olijfolie", "Garam masala", "Laos", "Kardemom",
-                      "Chilipoeder", "Bouillon"):
+        for title in ("Zout", "Peper", "Zwarte peper", "Kaneel", "Bloem",
+                      "Soja saus", "Olie", "Olijfolie", "Garam masala", "Laos",
+                      "Kardemom", "Chilipoeder", "Bouillon"):
             self.assertTrue(is_pantry_item(title), f"{title} hoort voorraad te zijn")
 
     def test_the_spice_rack_from_the_orders(self):
@@ -93,7 +93,7 @@ class PantryTests(unittest.TestCase):
 
     def test_freshly_ground_pepper_is_still_pantry(self):
         # "vers gemalen" gaat over de molen, niet over verse peper kopen.
-        self.assertTrue(is_pantry_item("Peper en zout", "1 pinch vers gemalen zwarte"))
+        self.assertTrue(is_pantry_item("Zwarte peper", "1 pinch vers gemalen"))
         self.assertTrue(is_pantry_item("Peper", "vers gemalen"))
 
     def test_split_keeps_both_groups_in_order(self):
