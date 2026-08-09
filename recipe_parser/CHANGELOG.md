@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.10.0
+
+Artikelen die je vrijwel altijd in huis hebt gaan niet meer vanzelf mee.
+
+- Olie, azijn, sauzen, bloem, suiker, zout, peper en de gemalen specerijen
+  (kaneel, kurkuma, garam masala, laos, kardemom, chilipoeder, bouillon en
+  meer) komen in een aparte groep **Waarschijnlijk in huis**, onderaan het
+  overzicht en standaard uitgevinkt. Ze verdwijnen dus niet: je ziet nog wel
+  dat een recept erom vraagt, en tikt ze aan als je fles bijna leeg is.
+- **Verse kruiden zijn een uitzondering.** "5 g verse basilicum" hoort gewoon
+  op de boodschappenlijst, "1 tsp gedroogde oregano" niet. Zonder dat verschil
+  zou een bosje koriander stilletjes van je lijst verdwijnen.
+- Blaadjeskruiden (basilicum, peterselie, munt, koriander, bieslook, dille)
+  gelden alleen als voorraad wanneer het recept expliciet "gedroogd" zegt.
+  Vraagt het ene recept om verse en het andere om gedroogde, dan wint kopen.
+- "Vers gemalen zwarte peper" telt als voorraad: dat woordje "vers" gaat
+  daar over de molen, niet over iets wat je moet halen.
+
+De lijst staat in `recipe_parser/bring_catalog.py` onder `PANTRY` en
+`DRIED_ONLY_PANTRY`.
+
 ## 1.9.0
 
 Nieuwe vormgeving, in de stijl van Bubble Card.

@@ -176,6 +176,7 @@
       overflow-wrap: anywhere;
     }
     .meta { color: var(--muted); font-size: 0.85rem; }
+    .sub { color: var(--muted); font-size: 0.9rem; margin: -0.4rem 0 0.8rem 0.9rem; }
 
     /* Inklapbare ingrediënten per recept */
     .peek { border-top: 1px solid rgba(128, 128, 128, 0.18); }
@@ -345,6 +346,43 @@
         {% endfor %}
       </div>
 
+      {% if pantry %}
+        <div class="section-head">
+          <span class="badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                 stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8 2h8l-1 3H9z"/>
+              <path d="M7 8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z"/>
+              <path d="M7 12h10"/>
+            </svg>
+          </span>
+          <h2>Waarschijnlijk in huis ({{ pantry|length }})</h2>
+          <span class="rule"></span>
+        </div>
+        <p class="sub">Deze gaan niet mee. Vink aan wat toch op de lijst moet.</p>
+
+        <div class="recipes">
+          {% for title, description in pantry %}
+            <div class="recipe">
+              <label class="recipe-row">
+                <input type="checkbox" class="tick" name="pantry" value="{{ title }}">
+                <span class="badge" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                       stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 2h8l-1 3H9z"/>
+                    <path d="M7 8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z"/>
+                  </svg>
+                </span>
+                <span class="texts">
+                  <span class="name">{{ title }}</span>
+                  {% if description %}<span class="meta">{{ description }}</span>{% endif %}
+                </span>
+              </label>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
       <div class="buttons">
         <button type="submit" class="primary" id="add-button">
           Toevoegen aan {{ entity_id }}
@@ -398,27 +436,36 @@
   busyOnSubmit('scan-form', 'scan-button', 'Recepten ophalen…');
   busyOnSubmit('add-form', 'add-button', 'Toevoegen aan de lijst…');
 
+  // Terugvaloptie voor browsers zonder :has(): de gevulde capsule via een klasse.
+  var allTicks = document.querySelectorAll('#add-form .tick');
+  var paint = function () {
+    Array.prototype.forEach.call(allTicks, function (t) {
+      var capsule = t.closest('.recipe');
+      if (capsule) capsule.classList.toggle('is-on', t.checked);
+    });
+  };
+
   var toggleAll = document.getElementById('toggle-all');
+  // De knop gaat alleen over de recepten, niet over de voorraadkast.
+  var recipeTicks = document.querySelectorAll('#add-form input[name="recipe"]');
+  var refresh = function () {
+    paint();
+    if (!toggleAll) return;
+    var anyOn = Array.prototype.some.call(recipeTicks, function (t) { return t.checked; });
+    toggleAll.textContent = anyOn ? 'Alles uitvinken' : 'Alles aanvinken';
+  };
+
   if (toggleAll) {
-    var ticks = document.querySelectorAll('#add-form input[name="recipe"]');
-    var refresh = function () {
-      var anyOn = Array.prototype.some.call(ticks, function (t) { return t.checked; });
-      toggleAll.textContent = anyOn ? 'Alles uitvinken' : 'Alles aanvinken';
-      Array.prototype.forEach.call(ticks, function (t) {
-        var capsule = t.closest('.recipe');
-        if (capsule) capsule.classList.toggle('is-on', t.checked);
-      });
-    };
     toggleAll.addEventListener('click', function () {
-      var anyOn = Array.prototype.some.call(ticks, function (t) { return t.checked; });
-      Array.prototype.forEach.call(ticks, function (t) { t.checked = !anyOn; });
+      var anyOn = Array.prototype.some.call(recipeTicks, function (t) { return t.checked; });
+      Array.prototype.forEach.call(recipeTicks, function (t) { t.checked = !anyOn; });
       refresh();
     });
-    Array.prototype.forEach.call(ticks, function (t) {
-      t.addEventListener('change', refresh);
-    });
-    refresh();
   }
+  Array.prototype.forEach.call(allTicks, function (t) {
+    t.addEventListener('change', refresh);
+  });
+  refresh();
 </script>
 </body>
 </html>

@@ -92,6 +92,20 @@ hoeveelheden achter elkaar: **Knoflook** met omschrijving
 eenheden uit vrije tekst optellen gaat een keer mis - en dan koop je de
 verkeerde hoeveelheid.
 
+### Wat je al in huis hebt
+
+Olie, azijn, bloem, suiker, zout, peper en de gemalen specerijen komen in een
+aparte groep **Waarschijnlijk in huis**, standaard uitgevinkt. Zo blijft je
+boodschappenlijst kort, maar zie je nog wel dat een recept om sojasaus vraagt
+- handig als de fles bijna leeg is. Aantikken en hij gaat alsnog mee.
+
+Verse kruiden zijn een uitzondering: *5 g verse basilicum* hoort gewoon op de
+lijst, *1 tsp gedroogde oregano* niet. En *vers gemalen zwarte peper* telt als
+voorraad, want daar gaat "vers" over de molen.
+
+De lijst staat in [`recipe_parser/bring_catalog.py`](recipe_parser/bring_catalog.py)
+onder `PANTRY` en `DRIED_ONLY_PANTRY`.
+
 Elk ingrediënt wordt gesplitst in een artikelnaam (de titel) en de
 hoeveelheid (de omschrijving), dus "400 gram prei" wordt een taak **Prei**
 met omschrijving *400 gram*. De artikelnaam wordt daarbij gematcht tegen

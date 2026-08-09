@@ -5,6 +5,35 @@ vaak een andere schrijfwijze ("hüttenkäse", "bosuien"), daarom staat er
 naast de catalogus een synoniemenlijst die naar de canonieke naam wijst.
 """
 
+# Artikelen die je vrijwel altijd in de kast hebt staan. Ze verdwijnen niet,
+# maar komen in het overzicht in een aparte groep die standaard uit staat: zo
+# zie je nog wel dat een recept er om vraagt, en kun je hem aantikken als de
+# fles bijna leeg is.
+PANTRY = {
+    # Olie, azijn en sauzen
+    "Olie", "Olijfolie", "Azijn", "Balsamico Azijn", "Soja saus", "Ketchup",
+    "Mayonaise", "Mosterd", "Pikante Saus", "BBQ Saus", "Honing",
+    "Ahornstroop", "Vissaus",
+    # Bakken en drogerij
+    "Bloem", "Suiker", "Poedersuiker", "Vanillesuiker", "Basterdsuiker",
+    "Rietsuiker", "Bakpoeder", "Gist", "Zetmeel", "Paneermeel", "Griesmeel",
+    # Zout, peper en gemalen specerijen
+    "Zout", "Peper", "Peper en zout", "Witte peper", "Peperkorrels", "Pfeffer",
+    "Kaneel", "Kurkuma", "Paprikapoeder", "Komijnzaad", "Mosterdzaad",
+    "Sesamzaad", "Korianderpoeder", "Chilipoeder", "Chilivlokken",
+    "Garam masala", "Berbere", "Za'atar", "Laos", "Kardemom", "Nootmuskaat",
+    "Asafoetida", "Bouillon",
+    # Gedroogde kruiden die je zelden vers koopt
+    "Oregano", "Tijm", "Rozemarijn", "Salie", "Laurierblad",
+}
+
+# Kruiden die je net zo vaak vers als gedroogd gebruikt. Die tellen alleen als
+# voorraad wanneer het recept expliciet "gedroogd" zegt - andersom zou een
+# bosje koriander stilletjes van de boodschappenlijst verdwijnen.
+DRIED_ONLY_PANTRY = {
+    "Basilicum", "Peterselie", "Munt", "Koriander", "Bieslook", "Dille",
+}
+
 CATALOG = [
     # Groente en fruit
     "Aardappelen", "Aardbeien", "Abrikozen", "Ananas", "Appels", "Artisjokken",

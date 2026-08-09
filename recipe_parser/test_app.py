@@ -152,6 +152,51 @@ class IndexRouteTests(unittest.TestCase):
         self.assertIn("Prei", titles)
         self.assertIn("Couscous", titles)
 
+    @patch("recipe_parser.requests.get")
+    def test_scan_puts_staples_in_their_own_group(self, mock_get):
+        mock_get.side_effect = fake_pages({VOEDINGSCENTRUM: "tagliatelle.html"})
+        resp = self.client.post("/", data={"text": VOEDINGSCENTRUM})
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("Waarschijnlijk in huis".encode(), resp.data)
+        # Olie en peper hoeven niet mee, prei en spinazie wel.
+        self.assertIn(b'name="pantry" value="Olie"', resp.data)
+        self.assertNotIn(b'name="pantry" value="Prei"', resp.data)
+
+    @patch.object(rp, "SUPERVISOR_TOKEN", "test-token")
+    @patch("recipe_parser._session")
+    @patch("recipe_parser.requests.get")
+    def test_staples_are_skipped_unless_ticked(self, mock_get, mock_session):
+        mock_get.side_effect = fake_pages({VOEDINGSCENTRUM: "tagliatelle.html"})
+        mock_post = mock_session.return_value.post
+        mock_post.return_value = FakeResponse(status_code=200)
+
+        resp = self.client.post(
+            "/", data={"action": "add", "recipe": VOEDINGSCENTRUM}
+        )
+        self.assertEqual(resp.status_code, 200)
+        titles = [c.kwargs["json"]["item"] for c in mock_post.call_args_list]
+        self.assertIn("Prei", titles)
+        self.assertNotIn("Olie", titles)
+        self.assertNotIn("Peper", titles)
+
+    @patch.object(rp, "SUPERVISOR_TOKEN", "test-token")
+    @patch("recipe_parser._session")
+    @patch("recipe_parser.requests.get")
+    def test_a_ticked_staple_is_added_after_all(self, mock_get, mock_session):
+        mock_get.side_effect = fake_pages({VOEDINGSCENTRUM: "tagliatelle.html"})
+        mock_post = mock_session.return_value.post
+        mock_post.return_value = FakeResponse(status_code=200)
+
+        resp = self.client.post("/", data={
+            "action": "add",
+            "recipe": VOEDINGSCENTRUM,
+            "pantry": "Olie",
+        })
+        self.assertEqual(resp.status_code, 200)
+        titles = [c.kwargs["json"]["item"] for c in mock_post.call_args_list]
+        self.assertIn("Olie", titles)
+        self.assertNotIn("Peper", titles)
+
     @patch.object(rp, "SUPERVISOR_TOKEN", "test-token")
     @patch("recipe_parser._session")
     @patch("recipe_parser.requests.get")

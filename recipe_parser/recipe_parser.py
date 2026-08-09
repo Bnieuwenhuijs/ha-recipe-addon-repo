@@ -26,7 +26,7 @@ from flask import Flask, request, jsonify, render_template
 import requests
 from bs4 import BeautifulSoup
 
-from bring_catalog import CATALOG, SYNONYMS
+from bring_catalog import CATALOG, SYNONYMS, PANTRY, DRIED_ONLY_PANTRY
 
 app = Flask(__name__)
 
@@ -810,12 +810,44 @@ def merge_items(item_lists):
     return [(title, " + ".join(parts)) for title, parts in merged.items()]
 
 
+# "verse basilicum" wil je kopen, maar "vers gemalen peper" zegt alleen iets
+# over de pepermolen - dat is nog steeds de peper uit je eigen kastje.
+FRESH_RE = re.compile(r"\bvers(e|se)?\b(?!\s+gemalen)", re.IGNORECASE)
+DRIED_RE = re.compile(r"\bgedroogd(e)?\b", re.IGNORECASE)
+
+
+def is_pantry_item(title: str, description: str = "") -> bool:
+    """
+    Heb je dit vrijwel zeker al in huis? Zout en kaneel wel, maar een bosje
+    verse koriander niet - dat woordje "verse" is het verschil tussen iets
+    uit je kastje en iets uit het schap.
+    """
+    fresh = bool(FRESH_RE.search(description))
+    if title in DRIED_ONLY_PANTRY:
+        # Alleen voorraad als het recept expliciet gedroogd zegt. Vraagt een
+        # ander recept om hetzelfde kruid vers, dan wint kopen.
+        return bool(DRIED_RE.search(description)) and not fresh
+    if title not in PANTRY:
+        return False
+    return not fresh
+
+
+def split_pantry(items):
+    """Splits de lijst in wat je moet kopen en wat waarschijnlijk in huis is."""
+    shopping, pantry = [], []
+    for title, description in items:
+        target = pantry if is_pantry_item(title, description) else shopping
+        target.append((title, description))
+    return shopping, pantry
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
     text = ""
     entity_id = DEFAULT_TODO_ENTITY
     recipes = []       # gevonden recepten om aan te vinken (stap 1)
-    merged = []        # samengevoegde boodschappenlijst (stap 2)
+    merged = []        # wat er naar de lijst gaat
+    pantry = []        # wat je waarschijnlijk al in huis hebt
     message = message_class = None
 
     if request.method == "POST":
@@ -829,8 +861,13 @@ def index():
                 message, message_class = "Vink minstens één recept aan.", "error"
             else:
                 fetched = recipes_for_values(text, gekozen)
-                merged = merge_items([r["items"] for r in fetched if not r["error"]])
+                alles = merge_items([r["items"] for r in fetched if not r["error"]])
                 mislukt = [r for r in fetched if r["error"]]
+
+                # Voorraadartikelen gaan alleen mee als ze zijn aangevinkt.
+                shopping, staples = split_pantry(alles)
+                aangevinkt = set(request.form.getlist("pantry"))
+                merged = shopping + [i for i in staples if i[0] in aangevinkt]
 
                 if not merged:
                     message, message_class = (
@@ -858,7 +895,9 @@ def index():
                 message, message_class = "Plak eerst een recept-link of tekst.", "error"
             else:
                 recipes = collect_recipes(text)
-                merged = merge_items([r["items"] for r in recipes if not r["error"]])
+                merged, pantry = split_pantry(
+                    merge_items([r["items"] for r in recipes if not r["error"]])
+                )
                 if not recipes:
                     message, message_class = (
                         "Geen recepten gevonden: plak een link, of een recept met "
@@ -872,6 +911,7 @@ def index():
         text=text,
         recipes=recipes,
         merged=merged,
+        pantry=pantry,
         message=message,
         message_class=message_class,
         entity_id=entity_id,
