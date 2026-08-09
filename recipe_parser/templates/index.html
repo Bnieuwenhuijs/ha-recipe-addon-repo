@@ -194,18 +194,42 @@
     .peek[open] summary::after { content: " ▴"; }
     .peek ul { margin: 0 0 0.8rem; padding: 0 1.2rem 0 4.45rem; font-size: 0.9rem; }
 
-    /* Boodschappenlijst */
-    .items { display: flex; flex-direction: column; gap: 0.4rem; }
-    .item {
+    /* Eén rijstijl voor de boodschappenlijst en de voorraadkast. Naam en
+       hoeveelheid staan achter elkaar en lopen gewoon door op een volgende
+       regel als het lang wordt - je moet in de winkel alles kunnen zien. */
+    .rows { display: flex; flex-direction: column; gap: 0.3rem; }
+    .row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
       background: var(--surface);
       border-radius: var(--radius-sm);
-      padding: 0.7rem 1.1rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 1rem;
+      padding: 0.55rem 0.95rem;
     }
-    .item .amount { color: var(--muted); font-size: 0.9rem; text-align: right; }
+    .row .text { min-width: 0; }
+    .row .name { font-weight: 600; display: inline; }
+    .row .amount { color: var(--muted); font-size: 0.9rem; }
+    .row .amount::before { content: " · "; }
+
+    /* Aantikbare rij (voorraadkast) */
+    .row.pick { cursor: pointer; }
+    .row .tick { position: absolute; opacity: 0; pointer-events: none; }
+    .dot {
+      flex: none;
+      width: 1.05rem;
+      height: 1.05rem;
+      border-radius: 999px;
+      border: 2px solid currentColor;
+      opacity: 0.4;
+      align-self: center;
+    }
+    .row:has(.tick:checked),
+    .row.is-on { background: var(--on-bg); color: var(--on-text); }
+    .row:has(.tick:checked) .amount,
+    .row.is-on .amount { color: inherit; opacity: 0.75; }
+    .row:has(.tick:checked) .dot,
+    .row.is-on .dot { background: currentColor; opacity: 1; }
+    .row:has(.tick:focus-visible) { outline: 2px solid var(--accent); }
 
     /* Meldingen */
     .notice {
@@ -361,24 +385,15 @@
         </div>
         <p class="sub">Deze gaan niet mee. Vink aan wat toch op de lijst moet.</p>
 
-        <div class="recipes">
+        <div class="rows">
           {% for title, description in pantry %}
-            <div class="recipe">
-              <label class="recipe-row">
-                <input type="checkbox" class="tick" name="pantry" value="{{ title }}">
-                <span class="badge" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                       stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M8 2h8l-1 3H9z"/>
-                    <path d="M7 8a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2z"/>
-                  </svg>
-                </span>
-                <span class="texts">
-                  <span class="name">{{ title }}</span>
-                  {% if description %}<span class="meta">{{ description }}</span>{% endif %}
-                </span>
-              </label>
-            </div>
+            <label class="row pick">
+              <input type="checkbox" class="tick" name="pantry" value="{{ title }}">
+              <span class="dot" aria-hidden="true"></span>
+              <span class="text">
+                <span class="name">{{ title }}</span>{% if description %}<span class="amount">{{ description }}</span>{% endif %}
+              </span>
+            </label>
           {% endfor %}
         </div>
       {% endif %}
@@ -405,11 +420,12 @@
       <span class="rule"></span>
     </div>
 
-    <div class="items">
+    <div class="rows">
       {% for title, description in merged %}
-        <div class="item">
-          <span>{{ title }}</span>
-          {% if description %}<span class="amount">{{ description }}</span>{% endif %}
+        <div class="row">
+          <span class="text">
+            <span class="name">{{ title }}</span>{% if description %}<span class="amount">{{ description }}</span>{% endif %}
+          </span>
         </div>
       {% endfor %}
     </div>
@@ -440,8 +456,8 @@
   var allTicks = document.querySelectorAll('#add-form .tick');
   var paint = function () {
     Array.prototype.forEach.call(allTicks, function (t) {
-      var capsule = t.closest('.recipe');
-      if (capsule) capsule.classList.toggle('is-on', t.checked);
+      var holder = t.closest('.recipe, .row');
+      if (holder) holder.classList.toggle('is-on', t.checked);
     });
   };
 

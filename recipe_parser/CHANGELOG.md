@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.12.0
+
+De voorraadkast en de boodschappenlijst zien er nu hetzelfde uit.
+
+- Beide gebruiken dezelfde compacte regel: de naam vet, de hoeveelheid er
+  direct achter in grijs. Eerder was de voorraadkast een hoge capsule met een
+  icoon en de hoeveelheid op een tweede regel, terwijl de boodschappenlijst
+  de hoeveelheid rechts uitlijnde - twee vormen voor hetzelfde soort ding.
+- De rijen zijn ongeveer een derde lager. Bij twintig voorraadartikelen
+  scheelt dat een halve schermlengte scrollen.
+- Voorraadrijen hebben links een rondje dat groen invult als je ze aantikt.
+  Verder is er geen verschil met de boodschappenlijst.
+- Lange samengevoegde hoeveelheden lopen gewoon door op een volgende regel,
+  netjes ingesprongen onder de tekst. In de winkel moet je kunnen zien dat
+  je vijf teentjes knoflook nodig hebt, niet dat er iets is afgekapt.
+
 ## 1.11.0
 
 De voorraadkast en de synoniemenlijst zijn flink uitgebreid, op basis van wat
